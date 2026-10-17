@@ -15,14 +15,26 @@ illustrative.** Reproduce any claim with the commands below.
 
 ## Quickstart
 
+On macOS/Linux (or Windows with `make` on PATH):
+
 ```bash
 make setup        # pip install -r requirements.txt
-make test         # 51 tests: no-look-ahead, ledger reconciliation, oracle correctness, ...
+make test         # 52 tests: no-look-ahead, ledger reconciliation, oracle correctness, ...
 make audit        # regenerates docs/DATA_AUDIT.md's numbers -> reports/audit_numbers.json
 make replay       # full-year scoreboard for all policies -> docs/RESULTS.md
 make precompute   # bakes the dashboard cache -> reports/dashboard_cache.json
 make ui           # streamlit run ui/app.py  (the technical console)
 make demo         # test + audit + replay + precompute + launch the UI, one command
+```
+
+**On a stock Windows install** (`make` is not on PATH by default — unlike
+every Unix/macOS system), use the identical cross-platform runner instead —
+every target name and meaning is the same:
+
+```powershell
+python run.py setup
+python run.py test
+python run.py demo        # same as `make demo`
 ```
 
 Also included: `ui/story.html` — a self-contained, animated, plain-language
