@@ -1,0 +1,9 @@
+[project]
+name = "ballast"
+version = "0.1.0"
+description = "Ballast: The Reserve Juggler -- a cost-aware, risk-calibrated treasury engine"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

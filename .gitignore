@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.cache/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+reports/*.json
+reports/figures/*.png
+reports/audit_stdout.txt
+reports/audit_stderr.txt
+*.db
+*.duckdb
+.venv/
+venv/
