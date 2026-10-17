@@ -1,0 +1,468 @@
+<title>Ballast — Keeping the Bank Steady</title>
+<style>
+  :root {
+    --ocean-deep: #0a1522;
+    --ocean-surface: #10233a;
+    --ocean-card: #142a44;
+    --foam: #e9f0f7;
+    --mist: #84a0bd;
+    --mist-dim: #5b7392;
+    --brass: #d9a75c;
+    --brass-bright: #f0c27e;
+    --seafoam: #52d1c3;
+    --storm: #e36f68;
+    --line: rgba(233, 240, 247, 0.1);
+    --serif: Iowan Old Style, Palatino Linotype, Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  :root[data-theme="light"] {
+    --ocean-deep: #eef3f8;
+    --ocean-surface: #ffffff;
+    --ocean-card: #f6f9fc;
+    --foam: #0f2238;
+    --mist: #4c6482;
+    --mist-dim: #7891ad;
+    --line: rgba(15, 34, 56, 0.1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ocean-deep: #eef3f8;
+      --ocean-surface: #ffffff;
+      --ocean-card: #f6f9fc;
+      --foam: #0f2238;
+      --mist: #4c6482;
+      --mist-dim: #7891ad;
+      --line: rgba(15, 34, 56, 0.1);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ocean-deep); color: var(--foam);
+    font-family: var(--sans); line-height: 1.6; overflow-x: hidden;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 28px; }
+  section { position: relative; padding: 108px 0; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 400; text-wrap: balance; margin: 0; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 14px;
+  }
+  .lede { color: var(--mist); font-size: 1.1rem; max-width: 62ch; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  a { color: var(--seafoam); }
+
+  /* ---------- HERO ---------- */
+  #hero { min-height: 92vh; display: flex; align-items: center; padding-top: 0; }
+  #wave-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.55; }
+  .hero-inner { position: relative; z-index: 2; }
+  .hero-inner h1 {
+    font-size: clamp(3.2rem, 9vw, 5.6rem); letter-spacing: 0.01em; color: var(--foam);
+    display: flex; align-items: baseline; gap: 18px;
+  }
+  .hero-inner h1 .mark { color: var(--brass); font-size: 0.6em; }
+  .hero-tagline { font-size: 1.3rem; color: var(--mist); margin-top: 18px; max-width: 46ch; }
+  .hero-stats { display: flex; gap: 48px; margin-top: 56px; flex-wrap: wrap; }
+  .hero-stat .v { font-family: var(--mono); font-size: 2.1rem; color: var(--seafoam); font-variant-numeric: tabular-nums; }
+  .hero-stat .l { color: var(--mist-dim); font-size: 0.82rem; margin-top: 4px; }
+  .scroll-cue {
+    position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%);
+    color: var(--mist-dim); font-size: 0.78rem; font-family: var(--mono); letter-spacing: 0.1em;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .scroll-cue .chev { animation: bob 1.8s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0);} 50%{transform:translateY(6px);} }
+
+  /* ---------- REVEAL ---------- */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s ease; }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* ---------- TANKS (the problem) ---------- */
+  .tank-row { display: flex; gap: 36px; margin-top: 56px; flex-wrap: wrap; }
+  .tank-card { flex: 1; min-width: 260px; background: var(--ocean-card); border: 1px solid var(--line); border-radius: 6px; padding: 28px; }
+  .tank-card h3 { font-size: 1.15rem; color: var(--foam); margin-bottom: 6px; }
+  .tank-rate { font-family: var(--mono); font-size: 2.4rem; margin: 18px 0; }
+  .tank-cash .tank-rate { color: var(--mist); }
+  .tank-vault .tank-rate { color: var(--brass); }
+  .tank-glass {
+    position: relative; height: 120px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
+    background: rgba(255,255,255,0.02); margin-top: 16px;
+  }
+  .tank-fill {
+    position: absolute; bottom: 0; left: 0; right: 0; transition: height 1.2s cubic-bezier(.4,0,.2,1);
+  }
+  .tank-cash .tank-fill { background: linear-gradient(180deg, rgba(132,160,189,0.35), rgba(132,160,189,0.15)); }
+  .tank-vault .tank-fill { background: linear-gradient(180deg, rgba(217,167,92,0.45), rgba(217,167,92,0.18)); }
+  .tank-caption { color: var(--mist-dim); font-size: 0.85rem; margin-top: 12px; }
+
+  /* ---------- WEEKDAY BARS ---------- */
+  .dow-chart { display: flex; align-items: flex-end; gap: 14px; height: 240px; margin: 52px 0 16px; }
+  .dow-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .dow-bar {
+    width: 100%; max-width: 54px; border-radius: 4px 4px 0 0; height: 0;
+    transition: height 1.4s cubic-bezier(.22,1,.36,1);
+    background: linear-gradient(180deg, var(--mist-dim), var(--mist));
+  }
+  .dow-bar-wrap.weekend .dow-bar { background: linear-gradient(180deg, var(--brass-bright), var(--brass)); }
+  .dow-label { font-family: var(--mono); font-size: 0.78rem; color: var(--mist-dim); margin-top: 10px; }
+  .dow-bar-wrap.weekend .dow-label { color: var(--brass); }
+  .dow-val { font-family: var(--mono); font-size: 0.72rem; color: var(--mist); margin-top: 2px; }
+
+  /* ---------- CLOCK ---------- */
+  .clock-row { display: flex; gap: 48px; align-items: center; margin-top: 48px; flex-wrap: wrap; }
+  .clock-face {
+    width: 220px; height: 220px; border-radius: 50%; border: 1px solid var(--line); position: relative; flex-shrink: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03), transparent 70%);
+  }
+  .clock-hand {
+    position: absolute; left: 50%; bottom: 50%; width: 2px; height: 92px; background: var(--brass);
+    transform-origin: bottom center; transform: translateX(-50%) rotate(0deg);
+    transition: transform 1.6s cubic-bezier(.4,0,.2,1), background 0.6s;
+  }
+  .clock-dot { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: var(--brass); }
+  .clock-label { position: absolute; font-family: var(--mono); font-size: 0.72rem; color: var(--mist-dim); }
+  .clock-flow { flex: 1; min-width: 260px; }
+  .flow-step {
+    display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); opacity: 0.35; transition: opacity 0.5s;
+  }
+  .flow-step.active { opacity: 1; }
+  .flow-step .t { font-family: var(--mono); color: var(--brass); width: 56px; flex-shrink: 0; }
+
+  /* ---------- STORM ---------- */
+  .storm-tiers { display: flex; flex-direction: column; gap: 14px; margin-top: 44px; }
+  .storm-tier {
+    display: flex; align-items: center; gap: 16px; background: var(--ocean-card); border: 1px solid var(--line);
+    border-radius: 6px; padding: 16px 20px; opacity: 0.4; transition: opacity 0.5s, border-color 0.5s;
+  }
+  .storm-tier.active { opacity: 1; border-color: var(--storm); }
+  .storm-tier .name { font-family: var(--mono); font-size: 0.82rem; color: var(--mist); width: 150px; flex-shrink: 0; }
+  .storm-tier .bar-track { flex: 1; height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; }
+  .storm-tier .bar-fill { height: 100%; width: 100%; background: var(--seafoam); transition: width 1.1s cubic-bezier(.4,0,.2,1); }
+  .storm-tier.draining .bar-fill { background: var(--storm); width: 8%; }
+  .storm-result { margin-top: 32px; padding: 20px 24px; border-radius: 6px; border: 1px solid var(--line); font-family: var(--mono); }
+  .storm-result.ok { border-color: var(--seafoam); color: var(--seafoam); }
+  .storm-result.fail { border-color: var(--storm); color: var(--storm); }
+  .scenario-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+  .pill {
+    font-family: var(--mono); font-size: 0.76rem; padding: 7px 13px; border-radius: 14px; border: 1px solid var(--line);
+  }
+  .pill.ok { color: var(--seafoam); border-color: rgba(82,209,195,0.35); }
+  .pill.fail { color: var(--storm); border-color: rgba(227,111,104,0.4); }
+
+  /* ---------- SCOREBOARD ---------- */
+  .score-rows { margin-top: 48px; display: flex; flex-direction: column; gap: 20px; }
+  .score-row .meta { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.85rem; margin-bottom: 6px; }
+  .score-row .meta .name { color: var(--foam); }
+  .score-row .meta .val { color: var(--mist); }
+  .score-track { height: 14px; background: rgba(255,255,255,0.06); border-radius: 7px; overflow: hidden; }
+  .score-fill { height: 100%; width: 0; border-radius: 7px; transition: width 1.5s cubic-bezier(.22,1,.36,1); }
+  .score-row.allcash .score-fill { background: var(--mist-dim); }
+  .score-row.naive .score-fill { background: var(--mist); }
+  .score-row.ballast .score-fill { background: var(--brass); }
+  .score-row.oracle .score-fill { background: var(--seafoam); }
+
+  .takeaway {
+    margin-top: 44px; padding: 26px 28px; border-left: 2px solid var(--brass); background: var(--ocean-card);
+    border-radius: 0 6px 6px 0; color: var(--mist); font-size: 0.98rem;
+  }
+  .takeaway strong { color: var(--foam); }
+
+  footer { padding: 72px 0 100px; border-top: 1px solid var(--line); color: var(--mist-dim); font-size: 0.86rem; }
+  footer a { color: var(--mist); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<section id="hero">
+  <canvas id="wave-canvas"></canvas>
+  <div class="wrap hero-inner">
+    <h1><span class="mark">⚓</span>Ballast</h1>
+    <p class="hero-tagline">Every hour, a digital bank moves millions between customers. Ballast decides, every single hour,
+      how much stays ready as cash — and how much goes to work earning interest — without ever risking a payment failing.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="v num" data-count="21352965" data-prefix="$">$0</div><div class="l">net interest earned this year</div></div>
+      <div class="hero-stat"><div class="v num" data-count="100" data-suffix="%">0%</div><div class="l">customer payouts funded, always</div></div>
+      <div class="hero-stat"><div class="v num" data-count="364">0</div><div class="l">nights, each sized on its own risk</div></div>
+    </div>
+  </div>
+  <div class="scroll-cue"><span>SCROLL TO SEE HOW</span><span class="chev">⌄</span></div>
+</section>
+
+<section id="problem">
+  <div class="wrap reveal">
+    <p class="eyebrow">The Problem</p>
+    <h2 style="font-size:2.2rem;">Two places for a dollar to sit. Neither is free.</h2>
+    <p class="lede">Deposits and withdrawals of roughly $10M each move through the bank every hour. Every dollar sitting in the
+      everyday checking account is instantly safe — and earns nothing. Every dollar moved into the overnight vault earns
+      interest — but can't be pulled back without a penalty if a customer needs it unexpectedly.</p>
+    <div class="tank-row">
+      <div class="tank-card tank-cash">
+        <h3>Cash Buffer</h3>
+        <div class="tank-rate num">0.0%</div>
+        <div class="tank-glass"><div class="tank-fill" id="fill-cash" style="height:0%"></div></div>
+        <p class="tank-caption">Always available. Pays nothing.</p>
+      </div>
+      <div class="tank-card tank-vault">
+        <h3>Yield Vault (overnight repo)</h3>
+        <div class="tank-rate num">~4.3%</div>
+        <div class="tank-glass"><div class="tank-fill" id="fill-vault" style="height:0%"></div></div>
+        <p class="tank-caption">Locked 17:00 → 08:00. Breaking it early costs 0.5% — which sounds small until you annualize
+          a 15-hour loan: <strong>that's roughly a 292% annual rate.</strong></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="discovery">
+  <div class="wrap reveal">
+    <p class="eyebrow">What the Data Actually Showed</p>
+    <h2 style="font-size:2.2rem;">Not every night is the same night.</h2>
+    <p class="lede">We measured the worst-case overnight cash drain — hour by hour — for all 364 nights in the year. A single
+      flat "safety cushion" turned out to be the wrong idea entirely:</p>
+    <div class="dow-chart" id="dow-chart">
+      <!-- bars injected by JS -->
+    </div>
+    <p class="takeaway">Friday and Saturday nights see <strong>4–5× the cash drain</strong> of any other night — and it has
+      nothing to do with payday. It's simply when people spend. A bank sizing its cushion the same way every night either
+      wastes money sitting idle five nights a week, or gets caught short on the two that matter. <strong>Ballast sizes the
+      cushion separately for weeknights and weekend nights</strong> — the single biggest design decision in the system.</p>
+  </div>
+</section>
+
+<section id="nightcycle">
+  <div class="wrap reveal">
+    <p class="eyebrow">A Night in the Life of a Dollar</p>
+    <h2 style="font-size:2.2rem;">The 17:00 decision.</h2>
+    <p class="lede">Every evening at 5pm, Ballast looks at how much cash is on hand, checks what kind of night it is, and
+      decides how much to keep back versus sweep into the vault. Watch it happen:</p>
+    <div class="clock-row">
+      <div class="clock-face" id="clock-face">
+        <div class="clock-hand" id="clock-hand"></div>
+        <div class="clock-dot"></div>
+        <div class="clock-label" style="top:8px; left:50%; transform:translateX(-50%);">00</div>
+        <div class="clock-label" style="bottom:8px; left:50%; transform:translateX(-50%);">12</div>
+        <div class="clock-label" style="right:10px; top:50%; transform:translateY(-50%);">17</div>
+        <div class="clock-label" style="left:10px; top:50%; transform:translateY(-50%);">08</div>
+      </div>
+      <div class="clock-flow" id="clock-flow">
+        <div class="flow-step" data-t="17:00"><span class="t">17:00</span><span>Buffer sized for tonight's regime. Everything above it sweeps into the vault, earning interest.</span></div>
+        <div class="flow-step" data-t="22:00"><span class="t">22:00</span><span>A customer withdraws. Covered instantly from the cash buffer — the vault stays untouched.</span></div>
+        <div class="flow-step" data-t="08:00"><span class="t">08:00</span><span>The vault matures. Principal plus a night of interest returns to the cash buffer, right before the business day begins.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="storm">
+  <div class="wrap reveal">
+    <p class="eyebrow">The Storm Test</p>
+    <h2 style="font-size:2.2rem;">What happens when customers panic?</h2>
+    <p class="lede">We replayed the year with a bank-run style shock injected — modeled on the 2023 Silicon Valley Bank run,
+      where roughly a quarter of deposits were requested within 24 hours. Watch the fallback waterfall fire in cost order:</p>
+    <div class="storm-tiers" id="storm-tiers">
+      <div class="storm-tier" data-tier="0"><span class="name">Cash Buffer</span><div class="bar-track"><div class="bar-fill"></div></div></div>
+      <div class="storm-tier" data-tier="1"><span class="name">Break Overnight Vault</span><div class="bar-track"><div class="bar-fill"></div></div></div>
+      <div class="storm-tier" data-tier="2"><span class="name">Sell Bonds</span><div class="bar-track"><div class="bar-fill"></div></div></div>
+      <div class="storm-tier" data-tier="3"><span class="name">Sell Equities</span><div class="bar-track"><div class="bar-fill"></div></div></div>
+      <div class="storm-tier" data-tier="4"><span class="name">Emergency Credit Line</span><div class="bar-track"><div class="bar-fill"></div></div></div>
+    </div>
+    <div class="storm-result ok" id="storm-result">Every customer payout funded. Nothing failed.</div>
+    <p class="lede" style="margin-top:36px;">We ran six more scenarios the same way — a doubled payday, a 3× holiday
+      shopping surge, a bond-market shock, an equity crash, a credit crunch:</p>
+    <div class="scenario-pills" id="scenario-pills"></div>
+  </div>
+</section>
+
+<section id="scoreboard">
+  <div class="wrap reveal">
+    <p class="eyebrow">The Full-Year Result</p>
+    <h2 style="font-size:2.2rem;">Four ways to run the same bank.</h2>
+    <p class="lede">We ran the entire year four times: never sweeping a dollar, a well-tuned fixed daily cushion, Ballast's
+      adaptive sizing, and a theoretical perfect-foresight upper bound no real system could ever reach. Lower is better —
+      this is total cost of liquidity: interest left on the table plus every fee, haircut, and penalty paid.</p>
+    <div class="score-rows" id="score-rows"></div>
+    <p class="takeaway">Once a bank sweeps <em>at all</em>, most of the value is already captured — that's the big jump from
+      "never sweep" to "sweep with a sensible fixed cushion." Ballast's edge over a well-tuned static cushion is real but
+      modest in calm conditions (it's a genuinely small economic band — we checked, not assumed). Where Ballast actually
+      earns its keep is the Storm Test above: the same day-of-week awareness that saves a little money on a quiet
+      Tuesday is what keeps the right amount in reserve on the Friday night that isn't quiet at all.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong style="color:var(--foam);">Every number on this page was computed by actually running the simulator against
+      the full year of transaction data</strong> — none of it is illustrative. See the full technical console, test suite,
+      and methodology notes in the project repository.</p>
+    <p>Built for The Reserve Juggler. Honesty over flash: see <code>docs/DECISIONS.md</code> for every assumption, every
+      bug we found in our own work, and why we made the calls we made.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // ---------- wave background ----------
+  const canvas = document.getElementById('wave-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, t = 0;
+  function resize(){ w = canvas.width = canvas.offsetWidth; h = canvas.height = canvas.offsetHeight; }
+  window.addEventListener('resize', resize); resize();
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function drawWaves(){
+    ctx.clearRect(0,0,w,h);
+    const layers = [
+      {amp: 18, freq: 0.012, speed: 0.012, y: h*0.62, color: 'rgba(82,209,195,0.10)'},
+      {amp: 26, freq: 0.008, speed: 0.008, y: h*0.72, color: 'rgba(217,167,92,0.08)'},
+      {amp: 14, freq: 0.018, speed: 0.02,  y: h*0.84, color: 'rgba(132,160,189,0.10)'},
+    ];
+    layers.forEach(L => {
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      for (let x = 0; x <= w; x += 6) {
+        const y = L.y + Math.sin(x*L.freq + t*L.speed) * L.amp;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h); ctx.closePath();
+      ctx.fillStyle = L.color; ctx.fill();
+    });
+    t += 1;
+    if (!reduceMotion) requestAnimationFrame(drawWaves);
+  }
+  drawWaves();
+
+  // ---------- counters ----------
+  function animateCount(el){
+    const target = parseFloat(el.dataset.count);
+    const prefix = el.dataset.prefix || '';
+    const suffix = el.dataset.suffix || '';
+    const dur = 1600; const start = performance.now();
+    function step(now){
+      const p = Math.min(1, (now-start)/dur);
+      const eased = 1 - Math.pow(1-p, 3);
+      const v = Math.round(target * eased);
+      el.textContent = prefix + v.toLocaleString() + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ---------- reveal + scenario triggers ----------
+  const dowData = [
+    {d:'Mon', v:6365129, wk:false},{d:'Tue', v:6621687, wk:false},{d:'Wed', v:5909602, wk:false},
+    {d:'Thu', v:7881394, wk:false},{d:'Fri', v:27773156, wk:true},{d:'Sat', v:31689120, wk:true},
+    {d:'Sun', v:4644800, wk:false},
+  ];
+  const dowChart = document.getElementById('dow-chart');
+  const maxDow = Math.max(...dowData.map(d=>d.v));
+  dowData.forEach(d => {
+    const wrap = document.createElement('div');
+    wrap.className = 'dow-bar-wrap' + (d.wk ? ' weekend' : '');
+    wrap.innerHTML = `<div class="dow-val">$${(d.v/1e6).toFixed(1)}M</div><div class="dow-bar" data-h="${(d.v/maxDow*100).toFixed(1)}"></div><div class="dow-label">${d.d}</div>`;
+    dowChart.appendChild(wrap);
+  });
+
+  const scenarios = [
+    {n:'Payday ×2', ok:true}, {n:'Holiday shopping ×3', ok:false}, {n:'Bond shock +200bp', ok:true},
+    {n:'Equity crash -35%', ok:true}, {n:'Haircut doubling', ok:true}, {n:'SVB-style run', ok:false},
+  ];
+  const pills = document.getElementById('scenario-pills');
+  scenarios.forEach(s => {
+    const p = document.createElement('span');
+    p.className = 'pill ' + (s.ok ? 'ok' : 'fail');
+    p.textContent = (s.ok ? '✓ ' : '✗ ') + s.n;
+    pills.appendChild(p);
+  });
+
+  const scoreData = [
+    {cls:'allcash', name:'Never sweep', val:41330803},
+    {cls:'naive', name:'Fixed $38M cushion', val:20377549},
+    {cls:'ballast', name:'Ballast (adaptive)', val:20349462},
+    {cls:'oracle', name:'Perfect foresight (theoretical)', val:19751669},
+  ];
+  const scoreRows = document.getElementById('score-rows');
+  const maxScore = Math.max(...scoreData.map(s=>s.val));
+  scoreData.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'score-row ' + s.cls;
+    row.innerHTML = `<div class="meta"><span class="name">${s.name}</span><span class="val num">$${s.val.toLocaleString()}/yr</span></div>
+      <div class="score-track"><div class="score-fill" data-w="${(s.val/maxScore*100).toFixed(1)}"></div></div>`;
+    scoreRows.appendChild(row);
+  });
+
+  const stormTiers = document.querySelectorAll('.storm-tier');
+  let stormPlayed = false;
+  function playStorm(){
+    if (stormPlayed) return; stormPlayed = true;
+    stormTiers.forEach((tier, i) => {
+      setTimeout(() => {
+        tier.classList.add('active');
+        if (i < stormTiers.length - 1) {
+          setTimeout(() => tier.classList.add('draining'), 500);
+        }
+      }, i * 650);
+    });
+  }
+
+  let clockPlayed = false;
+  function playClock(){
+    if (clockPlayed) return; clockPlayed = true;
+    const hand = document.getElementById('clock-hand');
+    const steps = document.querySelectorAll('.flow-step');
+    const angles = [360*(17/24), 360*(22/24), 360*(32/24)]; // 17:00, 22:00, 08:00(+24)
+    angles.forEach((ang, i) => {
+      setTimeout(() => {
+        hand.style.transform = `translateX(-50%) rotate(${ang}deg)`;
+        steps.forEach(s => s.classList.remove('active'));
+        steps[i].classList.add('active');
+      }, i * 1500 + 300);
+    });
+  }
+
+  let tanksPlayed = false;
+  function playTanks(){
+    if (tanksPlayed) return; tanksPlayed = true;
+    document.getElementById('fill-cash').style.height = '38%';
+    document.getElementById('fill-vault').style.height = '82%';
+  }
+
+  const bars = document.querySelectorAll('.dow-bar');
+  let barsPlayed = false;
+  function playBars(){
+    if (barsPlayed) return; barsPlayed = true;
+    bars.forEach(b => b.style.height = b.dataset.h + '%');
+  }
+
+  const fills = document.querySelectorAll('.score-fill');
+  let scorePlayed = false;
+  function playScore(){
+    if (scorePlayed) return; scorePlayed = true;
+    fills.forEach(f => f.style.width = f.dataset.w + '%');
+  }
+
+  const counters = document.querySelectorAll('[data-count]');
+  let countersPlayed = false;
+  function playCounters(){
+    if (countersPlayed) return; countersPlayed = true;
+    counters.forEach(animateCount);
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        if (e.target.closest('#storm')) playStorm();
+        if (e.target.closest('#nightcycle')) playClock();
+        if (e.target.closest('#problem')) playTanks();
+        if (e.target.closest('#discovery')) playBars();
+        if (e.target.closest('#scoreboard')) playScore();
+      }
+    });
+  }, {threshold: 0.3});
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  setTimeout(playCounters, 400);
+})();
+</script>

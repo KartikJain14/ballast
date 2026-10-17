@@ -138,6 +138,13 @@ class RiskPolicyConfig:
     bond_dv01_cap_frac: float = 0.0
     equity_cap_frac: float = 0.10        # hard limit: max frac of strategic surplus in Tier 3
     four_eyes_threshold_usd: float = 2_000_000.0  # sweeps above this need a second approval
+    # None = unlimited (the main scoreboard's assumption: the emergency credit
+    # line always has room, so "100% payout success" is a structural property
+    # of the waterfall -- brief Section 2 point 5). The Stress Lab sets this to
+    # a finite value to compute a genuine survival horizon: once a shortfall
+    # can't be funded even by the capped overdraft line, that is the first
+    # real payment failure, and the hour it occurs IS the survival horizon.
+    overdraft_line_cap_usd: float | None = None
 
 
 @dataclass

@@ -66,7 +66,12 @@ class Simulator:
         self.history = HistoryView(self.df)
         self.n = len(self.df)
 
-    def run(self, policy: Policy) -> ReplayResult:
+    def run(self, policy: Policy, stop_on_default: bool = False) -> ReplayResult:
+        """stop_on_default: used by the Stress Lab's survival-horizon search
+        (engine/stress/survival.py) with a finite risk.overdraft_line_cap_usd.
+        The main scoreboard never sets this (cap=None means unfunded is always
+        0, so this never triggers) -- "100% payout success" stays structural
+        for every policy comparison outside the Stress Lab."""
         cfg = self.cfg
         risk = cfg.risk
         assump = cfg.assumptions
@@ -79,6 +84,7 @@ class Simulator:
         overdraft_hours = 0
         four_eyes_events = 0
         trace_rows = []
+        survival_hours = None
 
         for t in range(self.n):
             row = self.history.row_at(t)
@@ -87,6 +93,8 @@ class Simulator:
             sweep_amount = 0.0
             bond_trade = 0.0
             equity_trade = 0.0
+            unfunded = 0.0
+            defaulted = False
 
             # --- 1. overdraft interest accrual on balance entering this hour ---
             if ledger.overdraft_drawn > 1e-9:
@@ -223,13 +231,31 @@ class Simulator:
                 # overdraft trap means overdraft is often ex-post *cheaper* than
                 # breaking a tier at this dataset's constants, but is barred to
                 # this position in the waterfall by policy, not by price).
+                # Capped by risk.overdraft_line_cap_usd when set (Stress Lab use
+                # only -- the main scoreboard runs uncapped, so "100% payout" is
+                # structural there; a cap can produce a genuine unfunded_amount,
+                # which IS the survival-horizon failure event.
                 if remaining > 1e-6:
-                    ledger.post(t, "OVERDRAFT_DRAW", "TIER0", "OVERDRAFT_FACILITY", remaining,
-                                memo=f"OD-LAST: drew ${remaining:,.0f} overdraft, all tiers exhausted/barred")
-                    waterfall_used["OVERDRAFT"] = remaining
+                    cap = risk.overdraft_line_cap_usd
+                    headroom = (cap - ledger.overdraft_drawn) if cap is not None else float("inf")
+                    draw = min(remaining, max(0.0, headroom))
+                    if draw > 1e-9:
+                        ledger.post(t, "OVERDRAFT_DRAW", "TIER0", "OVERDRAFT_FACILITY", draw,
+                                    memo=f"OD-LAST: drew ${draw:,.0f} overdraft, all tiers exhausted/barred")
+                        waterfall_used["OVERDRAFT"] = draw
+                    unfunded = remaining - draw
                     remaining = 0.0
 
-            if withdrawal > 0:
+            if unfunded > 1e-6:
+                # Genuine payment failure: fund what we can, the rest is a
+                # recorded default -- this is the ONLY place in the simulator
+                # where the "100% payout" invariant can break, and it only
+                # happens when a finite overdraft_line_cap_usd is configured.
+                funded_withdrawal = withdrawal - unfunded
+                if funded_withdrawal > 0:
+                    ledger.post(t, "WITHDRAWAL", "EXTERNAL", "TIER0", funded_withdrawal)
+                defaulted = True
+            elif withdrawal > 0:
                 ledger.post(t, "WITHDRAWAL", "EXTERNAL", "TIER0", withdrawal)
 
             # --- 7. opportunistic overdraft repayment ---
@@ -244,7 +270,7 @@ class Simulator:
             ledger.reconcile(assump.opening_cash_usd)
 
             trace_rows.append({
-                "t_idx": t, "timestamp": row["timestamp"],
+                "t_idx": t, "timestamp": row["timestamp"], "defaulted": defaulted, "unfunded_amount": unfunded,
                 "tier0": ledger.balances["TIER0"], "tier1": ledger.balances["TIER1"],
                 "tier2": ledger.balances["TIER2"], "tier3": ledger.balances["TIER3"],
                 "overdraft_drawn": ledger.overdraft_drawn,
@@ -255,8 +281,14 @@ class Simulator:
                 "cumulative_accrual_income": ledger.cumulative_accrual_income,
             })
 
+            if defaulted and survival_hours is None:
+                survival_hours = t
+                if stop_on_default:
+                    break
+
         trace = pd.DataFrame(trace_rows)
         summary = self._summarize(trace, ledger, overdraft_hours, four_eyes_events)
+        summary["survival_hours"] = survival_hours
         return ReplayResult(policy_name=policy.name, trace=trace, summary=summary, ledger=ledger)
 
     def _summarize(self, trace: pd.DataFrame, ledger: Ledger, overdraft_hours: int,
@@ -277,6 +309,9 @@ class Simulator:
             self.df["tier1_repo_rate_apy"].mean() / 100.0
         ) * (n_hours / 8760.0)
         total_cost_of_liquidity = total_fees + foregone_tier0_interest
+        total_withdrawals = self.df["withdrawals_usd"].iloc[:n_hours].sum()
+        total_unfunded = trace["unfunded_amount"].sum() if "unfunded_amount" in trace.columns else 0.0
+        payout_success_rate = 1.0 - (total_unfunded / total_withdrawals if total_withdrawals > 0 else 0.0)
         return {
             "n_hours": n_hours,
             "avg_total_balance": avg_balance,
@@ -290,7 +325,7 @@ class Simulator:
             "overdraft_event_count": n_overdraft_draws,
             "n_tier_breaks": n_breaks,
             "four_eyes_events": four_eyes_events,
-            "payout_success_rate": 1.0,  # by construction: waterfall always covers the full withdrawal
+            "payout_success_rate": payout_success_rate,  # 1.0 unless a finite overdraft_line_cap_usd caused a default
             "final_tier0": trace["tier0"].iloc[-1] if n_hours else 0.0,
             "final_tier1": trace["tier1"].iloc[-1] if n_hours else 0.0,
             "final_tier2": trace["tier2"].iloc[-1] if n_hours else 0.0,
