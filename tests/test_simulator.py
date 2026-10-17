@@ -109,6 +109,19 @@ def test_no_look_ahead_perturbing_future_rows_does_not_change_past_decisions(df,
     )
 
 
+def test_simple_2tier_mode_runs_on_the_same_engine(df):
+    """Brief Section 1.2/4.0: 'Simple 2-tier mode' must be a config switch on
+    the same engine, not a separate code path."""
+    cfg2 = EngineConfig.simple_2tier()
+    assert cfg2.mode == "simple_2tier"
+    assert [t.name for t in cfg2.tiers] == ["Cash Buffer", "Yield Vault"]
+    sim = Simulator(df, cfg2)
+    res = sim.run(StaticBufferPolicy(38_000_000))
+    assert len(res.trace) == 8760
+    assert (res.trace["tier2"] == 0).all() and (res.trace["tier3"] == 0).all()
+    res.ledger.reconcile(cfg2.assumptions.opening_cash_usd)
+
+
 def test_reconciliation_breach_is_actually_detectable(cfg):
     """Negative control: prove reconcile() would catch a real breach by
     directly corrupting a tier balance after a short run."""

@@ -1,4 +1,4 @@
-.PHONY: setup audit train replay test demo api ui
+.PHONY: setup audit replay precompute test demo api ui
 
 setup:
 	pip install -r requirements.txt
@@ -9,11 +9,11 @@ audit:
 test:
 	python -m pytest tests/ -q
 
-train:
-	python scripts/train.py
-
 replay:
 	python scripts/replay.py
+
+precompute:
+	python scripts/precompute.py
 
 api:
 	uvicorn api.main:app --reload --port 8000
@@ -21,5 +21,5 @@ api:
 ui:
 	streamlit run ui/app.py
 
-demo: test audit replay
+demo: test audit replay precompute
 	streamlit run ui/app.py
