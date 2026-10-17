@@ -26,12 +26,30 @@ from engine.policy.baselines import (  # noqa: E402
 )
 
 
-def all_policies(df):
+def best_static_buffer(df, cfg) -> tuple[float, dict]:
+    """Grid-search the static buffer baseline so 'best naive' is an honestly
+    tuned comparator, not a strawman -- see docs/DECISIONS.md: a flat $50M
+    buffer was our first guess and turned out to be slightly suboptimal
+    ($40M is better); reporting the searched optimum is the only credible way
+    to claim Ballast 'beats every naive baseline.'"""
+    sim = Simulator(df, cfg)
+    grid = [10e6, 20e6, 25e6, 30e6, 32e6, 35e6, 38e6, 40e6, 42e6, 45e6, 50e6, 65e6, 75e6, 100e6, 150e6]
+    best_buf, best_cost, best_summary = None, float("inf"), None
+    for buf in grid:
+        res = sim.run(StaticBufferPolicy(buf))
+        if res.summary["total_cost_of_liquidity"] < best_cost:
+            best_buf, best_cost, best_summary = buf, res.summary["total_cost_of_liquidity"], res.summary
+    return best_buf, best_summary
+
+
+def all_policies(df, cfg):
     from engine.policy.ballast_policy import BallastPolicy
     from engine.policy.oracle import OraclePolicy
+    best_buf, _ = best_static_buffer(df, cfg)
+    print(f"[grid search] best static buffer: ${best_buf/1e6:.0f}M")
     return [
         AllCashPolicy(),
-        StaticBufferPolicy(50_000_000),
+        StaticBufferPolicy(best_buf),
         FixedPctOfGrossPolicy(0.5),
         MovingAverageKSigmaPolicy(k=2.0),
         MillerOrrPolicy(),
@@ -46,7 +64,7 @@ def main():
     sim = Simulator(df, cfg)
 
     results = {}
-    for policy in all_policies(df):
+    for policy in all_policies(df, cfg):
         t0 = time.time()
         res = sim.run(policy)
         dt = time.time() - t0

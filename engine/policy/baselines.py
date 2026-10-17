@@ -68,7 +68,9 @@ class MovingAverageKSigmaPolicy(Policy):
         self.name = f"moving_avg_{k:.1f}sigma"
 
     def decide_sweep(self, t_idx, history, state, cfg):
-        nights = compute_nightly_path_max(history)
+        # Bound the recompute to a recent tail -- see BallastPolicy's
+        # MAX_LOOKBACK_HOURS comment; same O(n^2)->O(n) fix.
+        nights = compute_nightly_path_max(history.tail(2500))
         if len(nights) < 5:
             return 0.0
         tail = nights.tail(self.lookback_nights)

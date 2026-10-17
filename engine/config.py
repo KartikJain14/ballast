@@ -118,7 +118,19 @@ class RiskPolicyConfig:
     # (caught via a Phase 4 smoke test: a 0.60 cap forced ~40% of cash to sit
     # idle every single night regardless of day-of-week risk -- docs/DECISIONS.md).
     max_single_sweep_frac: float = 0.98
-    bond_dv01_cap_frac: float = 0.50     # hard limit: max frac of core balance in Tier 2
+    # Hard limit: max frac of cash eligible for the Tier2 bond sleeve. Default
+    # is 0.0 -- Ballast does NOT use bonds by default. We built the sleeve
+    # (engine/policy/ballast_policy.py::decide_bond_target_usd) and tested it
+    # at dv01_cap in {0.05, 0.10, 0.25, 0.50}: net profit was HIGHEST at 0.0
+    # and fell monotonically as allocation grew (realized bond-yield volatility
+    # this year, 3.76-5.92%, generates mark-to-market losses that exceed the
+    # ~0.45%/yr carry pickup over repo -- the brief's own Section 2 point 7
+    # flags bonds as "barely clear the bar"; our empirical test agrees they
+    # don't clear it at all for this realized path). The sleeve is kept fully
+    # functional and configurable (Settings tab / Stress Lab) so a treasurer
+    # can opt in and see the live tradeoff, rather than silently deleting a
+    # brief-mandated capability -- see docs/DECISIONS.md.
+    bond_dv01_cap_frac: float = 0.0
     equity_cap_frac: float = 0.10        # hard limit: max frac of strategic surplus in Tier 3
     four_eyes_threshold_usd: float = 2_000_000.0  # sweeps above this need a second approval
 

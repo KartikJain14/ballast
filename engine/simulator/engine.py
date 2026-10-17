@@ -127,6 +127,22 @@ class Simulator:
                     repo = RepoPosition(locked_amount=sweep_amount, lock_start_t=t,
                                          lock_rate_pct=float(row["tier1_repo_rate_apy"]))
 
+                # --- 3b. bond sleeve rebalance (buy-up-to-target only; see
+                # Policy.decide_bond_target_usd -- voluntary selling would pay
+                # the 2% haircut for nothing, so we never do it here) ---
+                cash_after_sweep = ledger.balances["TIER0"]
+                state_view2 = SimStateView(
+                    t_idx=t, cash_available=cash_after_sweep, tier_balances=dict(ledger.balances),
+                    repo_locked_amount=repo.locked_amount, overdraft_drawn=ledger.overdraft_drawn,
+                )
+                bond_target = max(0.0, policy.decide_bond_target_usd(t, hist_before, state_view2, cfg))
+                current_bonds = ledger.balances["TIER2"]
+                if bond_target > current_bonds * 1.2:
+                    buy_amount = min(bond_target - current_bonds, cash_after_sweep)
+                    if buy_amount > 1e-6:
+                        ledger.post(t, "SWEEP", "TIER2", "TIER0", buy_amount,
+                                    memo=f"SWP-BOND: allocated ${buy_amount:,.0f} to Tier2 core sleeve")
+
             # --- 4. mark Tier2/Tier3 to market ---
             bond_bal = ledger.balances["TIER2"]
             if bond_bal > 1e-9:

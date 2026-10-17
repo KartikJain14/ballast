@@ -150,6 +150,32 @@ isn't hidden. This is exactly the kind of thing Operating Rule #1 ("never
 fabricate a flattering number") cuts both ways on -- don't pick a number so
 large the real finding disappears, either.
 
+**D9. Built the Tier2 bond sleeve, tested it rigorously, and found it
+net-destroys value at this dataset's realized rate path -- so it's off by
+default, not forced on.**
+Following the brief's own barbell design (Section 2.7: core/stable balance in
+bonds, DV01-capped), we implemented `decide_bond_target_usd` -- a sleeve
+sized from the breakeven logic "carry accrues every untouched night, the 2%
+haircut is a one-off cost only when tapped, so only the rarely-tapped TOP
+slice of the buffer (above the ~80th percentile) belongs in bonds, not the
+whole thing" -- and wired it into the simulator (buy-up-to-target only,
+never voluntarily sell, to avoid paying the haircut for nothing). Swept the
+DV01 cap across {0%, 5%, 10%, 25%, 50%} of eligible cash on the full year:
+net profit (net interest minus all fees/haircuts/MTM losses) was **highest
+at 0% and fell monotonically as allocation grew** ($14.70M -> $14.61M ->
+$14.53M -> $14.17M -> $13.93M). The realized `tier2_bond_yield_pct` path this
+year ranges 3.76%-5.92% -- real yield volatility that generates genuine
+mark-to-market losses (via the confirmed price-only duration relationship,
+D7a/Section 12 of DATA_AUDIT.md) exceeding the ~0.45%/yr carry pickup over
+repo. This directly validates the brief's own Section 2 point 7 caution that
+bonds "barely clear the bar for operational money" -- our empirical test says
+they don't clear it at all for this realized path, and Operating Rule #1
+(never fabricate a flattering number) means we report that rather than
+forcing bonds into the default policy because the textbook says they should
+pay more. `bond_dv01_cap_frac` defaults to 0.0; the sleeve stays fully
+functional and configurable (Settings / Stress Lab) so a treasurer can opt in
+and see the live tradeoff rather than the capability being silently removed.
+
 **D8. Discovered that even the perfect-foresight Oracle shows overnight
 overdraft on 66 of 364 nights -- not a bug, but a capital-adequacy finding
 that's now central to the regret story.**

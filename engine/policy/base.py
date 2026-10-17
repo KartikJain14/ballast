@@ -35,10 +35,14 @@ class Policy(ABC):
         simulator -- it physically cannot contain hour t_idx's own row."""
         raise NotImplementedError
 
-    def decide_bond_target_frac(self, t_idx: int, history: pd.DataFrame, state: SimStateView,
-                                  cfg: EngineConfig) -> float:
-        """Fraction of (cash_available + tier2 balance) that should sit in Tier2
-        bonds after today's rebalance. Default: 0 (baselines don't use bonds)."""
+    def decide_bond_target_usd(self, t_idx: int, history: pd.DataFrame, state: SimStateView,
+                                 cfg: EngineConfig) -> float:
+        """Dollar target for the Tier2 bond sleeve balance after today's 17:00
+        rebalance. Default: 0 (baselines don't use bonds). The simulator only
+        BUYS up toward this target (banded, to avoid round-tripping the 2%
+        liquidation haircut on voluntary rebalancing) -- it never voluntarily
+        sells down to it; selling only ever happens via the funding waterfall
+        when cash is actually needed."""
         return 0.0
 
     def decide_equity_target_frac(self, t_idx: int, history: pd.DataFrame, state: SimStateView,
