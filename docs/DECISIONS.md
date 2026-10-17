@@ -74,6 +74,66 @@ comparing in `engine/data.py::validate` avoids a flaky boundary-equality test
 while still catching a *real* identity violation (anything beyond one cent of
 rounding slop) as a validation error.
 
+**D6a. Verified the 17:00->08:00 window is exactly 15h on every single night,
+including Fri/Sat, before trusting the weekend finding (D5).**
+Before building the simulator's maturity rule on the assumption that
+`repo_sweep_window_open`/`repo_sweep_mature` always mean "17:00 today ->
+08:00 tomorrow," we checked explicitly: `repo_sweep_window_open` is True at
+exactly 17:00 on all 365 days (one per day-of-week, roughly evenly split 52
+or 53 per dow), `repo_sweep_mature` is True at exactly 08:00 on all 365 days,
+and **every** open-to-next-mature gap across the entire year is exactly 15.0
+hours with zero exceptions — including Friday-open-to-Saturday-mature and
+Saturday-open-to-Sunday-mature. There is **no multi-day weekend repo lock**
+in this dataset's flag design (unlike the real-world Act/360 weekend-carry
+convention the brief mentions in Section 3.12, which affects *interest
+accrual* day-count, not the *lock duration* here). This confirms the D5
+Friday/Saturday finding is genuine customer-flow signal, not a window-sizing
+artifact from incorrectly splitting one long weekend lock into two slices.
+
+**D6b. Fixed an off-by-one in the overnight window boundary that understated
+`M` by ~16-22%.**
+Caught via advisor review before Phase 2's simulator could encode the same
+mistake in its maturity rule. The sweep executes at the instant hour 17
+begins, so the hour-17 row's own flow happens *after* the money is locked —
+it must be counted as at-risk. The repo matures at the instant hour 08:00
+begins, so the hour-8 row's own flow happens *after* the cash is freed — it
+must be excluded. The correct window is the half-open interval
+`[17:00, next 08:00)`, i.e. `timestamp >= s and timestamp < s + 15h`. The
+first version of `scripts/audit.py` used `(s, s+15h]` (excluded hour-17,
+included hour-8) — the reverse convention. The error understated mean `M` by
+16% ($10.85M → corrected $12.98M) and understated max `M` by 22% ($38.1M →
+corrected $46.7M); the day-of-week weekend effect (D5) survives and in fact
+sharpens — Saturday-night, not a Friday/Saturday tie, is the single worst
+night ($31.7M mean vs. $27.8M for Friday). `docs/DATA_AUDIT.md` Section 11
+carries the corrected numbers; `engine/simulator/engine.py`'s maturity logic
+(Phase 2) uses the same half-open convention, with a unit test asserting the
+boundary hours land on the correct side.
+
+**D6c. Confirmed the overdraft trap is real at this dataset's actual
+parameters, and fixed the simulator's funding waterfall order accordingly.**
+With the dataset's constant values (12% overdraft APR; 0.5/2.0/15.0% flat
+break fees for Tier1/2/3 — Section 3 of DATA_AUDIT.md), the breakeven
+duration where a flat break fee stops being worse than pro-rata overdraft is
+**exactly 365.0 hours (15.2 days) for Tier1**, 1,460h for Tier2, and 10,950h
+for Tier3. Every overnight gap (15h) is far below all three thresholds, so
+**overdraft at 12% APR is cheaper than breaking any tier, by roughly 24x in
+the Tier1 case** (0.0205% vs. 0.5%). A pure ex-post cost-minimizer would
+therefore never break a tier and would always draw overdraft — precisely the
+degenerate behavior brief Section 2 point 6 warns a naive optimizer will
+learn. **Decision:** the simulator's funding waterfall is cost-ordered among
+Tier0→Tier1→Tier2→Tier3 breaks *before* overdraft is ever touched, as a hard
+policy rule (`RiskPolicyConfig.overdraft_hard_block=True`), not by sorting on
+realized ex-post cost. This is deliberately *not* the cost-minimal choice on
+paper; the justification (documented on-screen, not hidden) is that real
+overdraft facilities carry uninternalized non-price consequences the dataset
+doesn't charge for — regulatory attention, correspondent-bank relationship
+risk, potential credit-line cancellation — exactly the gap between "the
+model's price" and "the real cost" that SR 11-7 governance exists to catch.
+The Stress Lab includes a "naive cost-minimizer" toggle that disables this
+constraint specifically to *show* the trap springing (overdraft usage
+replaces all tier breaks), as a deliberate teaching moment, not a hidden
+failure mode.
+
 **D7. Ledger accrual modeled via a virtual `ACCRUAL_INCOME` account, not a
 manual reconciliation parameter.**
 First draft of `Ledger.reconcile()` took a `cumulative_accruals` argument the

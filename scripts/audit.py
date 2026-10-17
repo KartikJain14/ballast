@@ -180,8 +180,13 @@ def main():
     nights = []
     starts = df.loc[(df["hour"] == 17), "timestamp"]
     for s in starts:
-        end = s + pd.Timedelta(hours=15)  # 17:00 -> next 08:00 = 15 hourly steps
-        window = df_idx.loc[(df_idx.index > s) & (df_idx.index <= end), "net_flow_usd"]
+        # The 17:00 row's own flow happens AFTER the sweep has already locked the
+        # money away (sweep executes at the instant hour 17 begins), so it IS at
+        # risk; the 08:00 row's flow happens AFTER maturity has freed the cash, so
+        # it is NOT at risk. Window is therefore [s, s+15h) = hours 17..07 inclusive,
+        # i.e. index >= s and < s+15h -- NOT (s, s+15h] as a naive reading suggests.
+        end = s + pd.Timedelta(hours=15)
+        window = df_idx.loc[(df_idx.index >= s) & (df_idx.index < end), "net_flow_usd"]
         if len(window) < 15:
             continue
         outflow = -window  # outflow = withdrawals-heavy = negative net_flow

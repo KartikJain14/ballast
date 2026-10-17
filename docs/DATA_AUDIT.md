@@ -152,18 +152,31 @@ Operating Rule #1 forbids.
 
 ## 11. The overnight path-max `M` — the central risk variable, and its most important structural feature
 
-Computed over all 364 complete 17:00→08:00 windows in the year:
+Computed over all 364 complete 17:00→08:00 windows in the year.
+
+**Window boundary convention (a real off-by-one we caught and fixed):** the
+sweep executes at the *instant* hour 17 begins, so the 17:00 row's own flow
+happens *after* the money is already locked away — it is at risk. The repo
+matures at the instant hour 08:00 begins, so the 08:00 row's own flow happens
+*after* the cash is freed — it is *not* at risk. The window is therefore the
+half-open interval **[17:00, next 08:00)** — i.e. `timestamp >= s and
+timestamp < s + 15h`, which includes the hour-17 flow and excludes the
+hour-8 flow. Our first pass wrote `(s, s+15h]` (excluding hour-17, including
+hour-8) — the opposite convention — which understated mean `M` by
+**~16%** ($10.85M vs. the corrected $12.98M) and understated the max by
+**~22%** ($38.1M vs. $46.7M). Caught before Phase 2 built the simulator's
+maturity rule on the wrong convention; see `docs/DECISIONS.md` D6b.
 
 | Statistic | Value |
 |---|---|
-| Mean | $10,854,474 |
-| Std | $9,865,792 |
-| P50 | $6,111,864 |
-| P90 | $26,791,470 |
-| P95 | $28,606,312 |
-| P99 | $31,909,714 |
-| Max | $38,114,281 |
-| Min | –$2,384,039 |
+| Mean | $12,983,555 |
+| Std | $11,382,372 |
+| P50 | $7,666,599 |
+| P90 | $31,609,826 |
+| P95 | $33,475,604 |
+| P99 | $39,113,465 |
+| Max | $46,660,691 |
+| Min | –$807,038 |
 
 The headline finding is **not** the summary stats — it's the shape
 (`reports/figures/overnight_pathmax_hist.png`): **`M` is sharply bimodal.**
@@ -172,20 +185,32 @@ Splitting by the day-of-week the 17:00 sweep starts explains it completely
 
 | Night starting | Mean M | Median M |
 |---|---|---|
-| Mon | $5.02M | $4.44M |
-| Tue | $4.93M | $5.13M |
-| Wed | $4.46M | $4.36M |
-| Thu | $6.69M | $6.27M |
-| **Fri** | **$25.69M** | **$25.92M** |
-| **Sat** | **$25.40M** | **$25.26M** |
-| Sun | $3.80M | $3.08M |
+| Mon | $6.37M | $5.51M |
+| Tue | $6.62M | $5.87M |
+| Wed | $5.91M | $5.18M |
+| Thu | $7.88M | $8.16M |
+| **Fri** | **$27.77M** | **$28.37M** |
+| **Sat** | **$31.69M** | **$31.73M** |
+| Sun | $4.64M | $4.32M |
 
-**Friday-night and Saturday-night overnight windows carry ~5x the path-max
-outflow risk of any other night of the week.** This is not a payday effect
+**Friday-night and especially Saturday-night overnight windows carry ~4-5x
+the path-max outflow risk of any other night of the week** (Saturday is in
+fact the single worst night, not tied with Friday as the uncorrected window
+suggested). This is not a payday effect
 (we checked — day-of-month is uniformly spread across the high-risk nights);
 it is a pure weekend-spending effect baked into the generator. It is also
 *not* about weekend repo-carry mechanics (that affects accrual duration, not
 customer flow risk) — it is genuinely a customer-behavior seasonality.
+
+**Window-definition check (don't skip this):** before trusting the finding
+above, we verified it isn't an artifact of assuming a fixed 15h window when
+the actual lock might span a weekend. `repo_sweep_window_open` fires at
+17:00 on **all 365 days** (not just business days) and `repo_sweep_mature`
+fires at 08:00 on all 365 days; every open-to-next-mature gap in the dataset
+is **exactly 15.0 hours, with zero exceptions**, including Friday→Saturday
+and Saturday→Sunday. So each night, including weekend nights, is genuinely
+its own independent 15h decision window — the weekend effect below is real
+customer-flow signal, not a double-counted multi-day lock sliced in two.
 
 **This is a first-order design decision, not a footnote.** A single pooled
 buffer sized off `F_M` for all nights would be forced to choose between

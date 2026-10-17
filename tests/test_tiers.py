@@ -46,3 +46,25 @@ def test_overdraft_cost_scales_with_hours():
     c1 = overdraft_cost(1_000_000, 12.0, 1)
     c2 = overdraft_cost(1_000_000, 12.0, 2)
     assert c2 == pytest.approx(2 * c1)
+
+
+def test_overdraft_trap_is_real_at_dataset_parameters():
+    """THE central reason the brief demands overdraft be a hard policy
+    constraint rather than a cost term: at this dataset's constant parameters
+    (12% APR overdraft, 0.5/2.0/15.0% flat break fees), overdraft is cheaper
+    than breaking ANY tier for any realistic (<365h) shortfall duration,
+    including every overnight (15h) gap. A pure cost-minimizing optimizer
+    given these numbers would never break a tier and would always draw
+    overdraft -- exactly the degenerate policy brief Section 2 point 6 warns
+    against. Verified here so this isn't an assertion without evidence."""
+    overnight_hours = 15
+    od_cost_per_dollar = 0.12 * overnight_hours / 8760  # ~0.0205%
+    repo_break_pct = 0.5 / 100
+    bond_break_pct = 2.0 / 100
+    equity_break_pct = 15.0 / 100
+    assert od_cost_per_dollar < repo_break_pct
+    assert od_cost_per_dollar < bond_break_pct
+    assert od_cost_per_dollar < equity_break_pct
+    # repo breakeven is exactly 365h (15.2 days) at these dataset constants
+    breakeven_hours = (0.5 / 12.0) * 8760
+    assert breakeven_hours == pytest.approx(365.0)
