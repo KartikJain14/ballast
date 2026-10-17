@@ -112,12 +112,17 @@ class RiskPolicyConfig:
     # (engine/risk/newsvendor.py). It exists purely as a sanity backstop
     # against a broken forecaster recommending an absurd sweep. At this
     # dataset's scale ($2B capital vs. $10-47M of nightly path-max risk --
-    # DATA_AUDIT.md Section 11), the risk-correct buffer is routinely <5% of
-    # cash, so the backstop must sit near 1.0 or it silently becomes the
-    # *binding* constraint and the newsvendor sizing never actually executes
-    # (caught via a Phase 4 smoke test: a 0.60 cap forced ~40% of cash to sit
-    # idle every single night regardless of day-of-week risk -- docs/DECISIONS.md).
-    max_single_sweep_frac: float = 0.98
+    # DATA_AUDIT.md Section 11), the risk-correct buffer is routinely <5% (and
+    # in the first weeks of the year, when cash is largest relative to M,
+    # <2%) of cash. We first set this to 0.60 (caught: forced ~40% of cash
+    # idle every night, total_cost_of_liquidity swamped by the cap, not the
+    # newsvendor logic). Raised to 0.98 -- still found binding on 200/364
+    # nights when regret-decomposing the Oracle against ITSELF (which should
+    # be exactly zero; it showed ~$239K of spurious "regret" purely from the
+    # 2% floor forcing extra buffer early in the year). Raised to 0.999: a
+    # true sanity backstop (bars literally sweeping 100%) without distorting
+    # the economics at this capital scale. See docs/DECISIONS.md D10.
+    max_single_sweep_frac: float = 0.999
     # Hard limit: max frac of cash eligible for the Tier2 bond sleeve. Default
     # is 0.0 -- Ballast does NOT use bonds by default. We built the sleeve
     # (engine/policy/ballast_policy.py::decide_bond_target_usd) and tested it

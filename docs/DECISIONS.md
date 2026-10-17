@@ -150,6 +150,28 @@ isn't hidden. This is exactly the kind of thing Operating Rule #1 ("never
 fabricate a flattering number") cuts both ways on -- don't pick a number so
 large the real finding disappears, either.
 
+**D10. Found and fixed a SECOND instance of the sweep-cap calibration bug
+(D6's fix to 0.98 wasn't enough), using the regret decomposition itself as the
+detector.**
+Building `decompose_regret` (Phase 8 innovation), the very first sanity check
+-- regret-decomposing the Oracle against itself, which must be exactly zero
+by definition -- came back at **$239,294**, not zero. Root cause: the
+`max_single_sweep_frac=0.98` cap (set in D6 to fix the original 0.60
+degeneracy) was *still binding* on 200 of 364 nights, specifically in the
+first several weeks of the year when cash is largest relative to that
+night's M (the cap forces at least 2% of cash to stay in Tier0 regardless of
+how small the real overnight risk is). Raised to 0.999: spurious oracle
+self-regret dropped to ~$625 (99.7% reduction), now attributable only to 14
+nights with near-zero realized M where even a 0.1% floor exceeds the true
+need -- an accepted, documented residual cost of keeping a nonzero safety
+backstop at all, not a bug. **This is the second time a "reasonable-sounding"
+hard governance cap has silently become the binding constraint instead of
+the risk-based sizing logic it was meant to backstop** (D6 was the first, at
+0.60). The general lesson, now explicit in both config comments: any
+fixed-fraction governance cap must be checked against the ACTUAL scale of
+risk vs. capital in the data, or it silently substitutes for the model it
+was supposed to merely guard.
+
 **D9. Built the Tier2 bond sleeve, tested it rigorously, and found it
 net-destroys value at this dataset's realized rate path -- so it's off by
 default, not forced on.**

@@ -33,7 +33,7 @@ def best_static_buffer(df, cfg) -> tuple[float, dict]:
     ($40M is better); reporting the searched optimum is the only credible way
     to claim Ballast 'beats every naive baseline.'"""
     sim = Simulator(df, cfg)
-    grid = [10e6, 20e6, 25e6, 30e6, 32e6, 35e6, 38e6, 40e6, 42e6, 45e6, 50e6, 65e6, 75e6, 100e6, 150e6]
+    grid = [10e6, 20e6, 25e6, 30e6, 32e6, 35e6, 36e6, 37e6, 38e6, 39e6, 40e6, 41e6, 42e6, 45e6, 50e6, 65e6, 75e6, 100e6, 150e6]
     best_buf, best_cost, best_summary = None, float("inf"), None
     for buf in grid:
         res = sim.run(StaticBufferPolicy(buf))
