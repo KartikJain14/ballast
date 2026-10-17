@@ -266,14 +266,42 @@ separately (no double-counting).
   realized/estimated volatility series. We do not attempt to "forecast" it;
   we treat it as a given constant in the equity-sleeve risk/EV calculations.
 
-## 14. Opening balance — unparameterized in the data
+## 14. Opening balance — unparameterized in the data, and a structural decline finding
 
 The dataset contains flows, not a balance sheet; there is no "true" opening
-cash balance. We parameterize `opening_cash_usd` and `deposit_base_usd`
-(default: **$20,000,000** each, matching the brief's framing) in
+cash balance. We parameterize `opening_cash_usd` and `deposit_base_usd` in
 `engine/config.py::DataAssumptions`, and report every dollar KPI **also** in
 basis points and $-per-$100M so headline numbers are legible regardless of
 the chosen scale.
+
+**Finding: the book has a real structural net outflow over the simulated
+year, not just noise.** `net_flow_usd.cumsum()` drifts from $0 to a trough of
+**–$2.589B** and ends the year at **–$2.531B**, a near-monotonic decline
+after an early peak of +$112M around hour ~500. This is consistent with
+Section 2's finding that 51.4% of hours are net-outflow and the mean net flow
+(–$288,893/hour) is persistently negative, not just noisy around zero.
+
+**This directly drove a design decision.** Our first pass set
+`opening_cash_usd = $20,000,000` (one hour of gross flow, matching the
+brief's "$20M/hour" framing literally). Running the simulator's `all_cash`
+baseline against it produced a degenerate result: **98.5% of all hours spent
+in overdraft**, with the overdraft balance snowballing past **$2.7B** by
+year-end — the simulation said nothing about policy quality, only that $20M
+of capital cannot support a book with multi-million-dollar hourly swings and
+a multi-billion-dollar annual structural decline. We revised
+`opening_cash_usd = deposit_base_usd = $2,000,000,000` — enough that the
+scoreboard measures *policy quality* rather than *capital adequacy*, while
+still leaving the book under real, visible pressure by year-end (we do not
+over-capitalize to the point where the structural decline becomes invisible
+— it is a genuine, reportable feature of this dataset).
+
+**Scope boundary, stated honestly:** Ballast manages intraday/overnight
+liquidity risk and yield capture *within* whatever flow reality the business
+produces. It cannot and does not fix a secular deposit-base decline — that
+is a growth/business problem, not a treasury-operations problem. Ballast's
+early-warning system (Section 4.5 governance) does surface the trend as a
+signal a treasurer/CFO should see, since a shrinking deposit base changes how
+aggressively the bank should be sweeping into less-liquid tiers.
 
 ## 15. Every ambiguity resolved, as named config parameters
 

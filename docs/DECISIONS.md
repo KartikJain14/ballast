@@ -134,6 +134,22 @@ constraint specifically to *show* the trap springing (overdraft usage
 replaces all tier breaks), as a deliberate teaching moment, not a hidden
 failure mode.
 
+**D6d. Raised `opening_cash_usd`/`deposit_base_usd` from $20M to $2B after
+the first simulator smoke test produced a degenerate result.**
+The dataset's cumulative net flow declines nearly monotonically to -$2.53B
+over the year (Section 14 of DATA_AUDIT.md). With opening capital of $20M
+(one hour of gross flow -- our first literal reading of the brief's "$20M/
+hour" framing as if it were a balance, not a flow), the `all_cash` baseline
+spent **98.5% of all hours in overdraft** with the overdraft balance
+snowballing past $2.7B. That result is a statement about capital adequacy,
+not policy quality, and would have made every policy comparison in the
+scoreboard meaningless (everyone drowns identically). Raised to $2B: enough
+that policy choice, not capital adequacy, drives the scoreboard, while still
+leaving the book under genuine pressure by year-end so the structural decline
+isn't hidden. This is exactly the kind of thing Operating Rule #1 ("never
+fabricate a flattering number") cuts both ways on -- don't pick a number so
+large the real finding disappears, either.
+
 **D7. Ledger accrual modeled via a virtual `ACCRUAL_INCOME` account, not a
 manual reconciliation parameter.**
 First draft of `Ledger.reconcile()` took a `cumulative_accruals` argument the

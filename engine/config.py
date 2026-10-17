@@ -124,8 +124,19 @@ class DataAssumptions:
         "the row for hour t (including its repo_sweep_window_open/mature flags) "
         "is realized *during* hour t and is not visible when the hour-t decision is made."
     )
-    opening_cash_usd: float = 20_000_000.0  # unknown in dataset; parameterized, see DATA_AUDIT.md
-    deposit_base_usd: float = 20_000_000.0  # scale used to report bps / per-$100M figures
+    # Unknown in the dataset; parameterized, see DATA_AUDIT.md Section 16. The
+    # dataset's cumulative net flow drifts from 0 to -$2.53B over the year (a
+    # genuine structural finding, not noise -- 51.4% of hours are net-outflow
+    # and the mean is persistently negative). $20M (one hour of gross flow)
+    # is nowhere near enough capital to be solvent under any policy; it was
+    # our first guess and produced a degenerate "always in overdraft"
+    # simulation that said nothing about policy quality. $2B leaves the book
+    # under real, visible pressure by year-end (the structural decline is a
+    # genuine feature of this data, not hidden by over-capitalizing) while
+    # still being large enough that policy choice -- not capital adequacy --
+    # is what differentiates the scoreboard.
+    opening_cash_usd: float = 2_000_000_000.0
+    deposit_base_usd: float = 2_000_000_000.0  # scale used to report bps / per-$100M figures
     timezone_note: str = "Timestamps are treated as naive local wall-clock hours, no DST adjustment found in data (see DATA_AUDIT.md)."
 
     def as_dict(self) -> dict:

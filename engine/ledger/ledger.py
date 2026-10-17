@@ -14,7 +14,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-VIRTUAL_ACCOUNTS = {"EXTERNAL", "OVERDRAFT_FACILITY", "ACCRUAL_INCOME"}
+VIRTUAL_ACCOUNTS = {"EXTERNAL", "OVERDRAFT_FACILITY", "ACCRUAL_INCOME", "FEE_SINK"}
+
+FEE_KINDS = {"FEE", "BREAK_FEE", "HAIRCUT", "MTM_LOSS", "OVERDRAFT_INTEREST"}
 
 
 class LedgerError(RuntimeError):
@@ -24,7 +26,8 @@ class LedgerError(RuntimeError):
 @dataclass
 class JournalEntry:
     t_idx: int
-    kind: str              # "DEPOSIT", "WITHDRAWAL", "SWEEP", "BREAK", "OVERDRAFT_DRAW", "OVERDRAFT_REPAY", "ACCRUAL", "FEE"
+    kind: str              # "DEPOSIT", "WITHDRAWAL", "SWEEP", "BREAK_RELEASE", "BREAK_FEE", "OVERDRAFT_DRAW",
+                            # "OVERDRAFT_REPAY", "OVERDRAFT_INTEREST", "ACCRUAL", "MTM_GAIN", "MTM_LOSS", "FEE"
     debit_account: str      # account that increases
     credit_account: str     # account that decreases
     amount: float
@@ -79,7 +82,7 @@ class Ledger:
         if credit_account == "ACCRUAL_INCOME":
             self.cumulative_accrual_income += amount
 
-        if kind in ("FEE", "BREAK", "HAIRCUT", "OVERDRAFT_INTEREST"):
+        if kind in FEE_KINDS:
             self.cumulative_fees_paid += amount
 
     def total_tier_balance(self) -> float:

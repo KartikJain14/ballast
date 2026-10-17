@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from engine.data import load_raw, validate, DEFAULT_CSV_PATH  # noqa: E402
+from engine.risk.pathmax import compute_nightly_path_max  # noqa: E402
 
 import matplotlib
 matplotlib.use("Agg")
@@ -176,25 +177,12 @@ def main():
     }
 
     # --- overnight path-max M_d over 17:00 -> 08:00 window ---
-    df_idx = df.set_index("timestamp")
-    nights = []
-    starts = df.loc[(df["hour"] == 17), "timestamp"]
-    for s in starts:
-        # The 17:00 row's own flow happens AFTER the sweep has already locked the
-        # money away (sweep executes at the instant hour 17 begins), so it IS at
-        # risk; the 08:00 row's flow happens AFTER maturity has freed the cash, so
-        # it is NOT at risk. Window is therefore [s, s+15h) = hours 17..07 inclusive,
-        # i.e. index >= s and < s+15h -- NOT (s, s+15h] as a naive reading suggests.
-        end = s + pd.Timedelta(hours=15)
-        window = df_idx.loc[(df_idx.index >= s) & (df_idx.index < end), "net_flow_usd"]
-        if len(window) < 15:
-            continue
-        outflow = -window  # outflow = withdrawals-heavy = negative net_flow
-        cum = outflow.cumsum()
-        M = float(cum.max())
-        nights.append({"night_start": str(s), "M": M, "terminal": float(cum.iloc[-1])})
-
-    M_vals = np.array([n["M"] for n in nights])
+    # Canonical window logic lives in engine.risk.pathmax (half-open [17:00, next
+    # 08:00), see docs/DECISIONS.md D6b) -- shared with the simulator/policies/
+    # backtest so this boundary convention can't drift between them again.
+    nights_df = compute_nightly_path_max(df)
+    nights = nights_df.to_dict(orient="records")
+    M_vals = nights_df["M"].to_numpy()
     NUMBERS["overnight_path_max"] = {
         "n_nights": len(nights),
         "mean": float(M_vals.mean()), "std": float(M_vals.std()),
@@ -211,9 +199,6 @@ def main():
     savefig("overnight_pathmax_hist.png")
 
     # --- KEY FINDING: M is bimodal. Break down by day-of-week of the 17:00 start. ---
-    nights_df = pd.DataFrame(nights)
-    nights_df["night_start"] = pd.to_datetime(nights_df["night_start"])
-    nights_df["dow"] = nights_df["night_start"].dt.dayofweek  # 0=Mon .. 4=Fri, 5=Sat, 6=Sun
     dow_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     dow_stats = nights_df.groupby("dow")["M"].agg(["mean", "median", "std", "count"])
     NUMBERS["overnight_path_max_by_dow"] = {
