@@ -107,7 +107,17 @@ class RiskPolicyConfig:
     q_policy: float = 0.995          # minimum overnight coverage quantile (the "slider")
     cvar_beta: float = 0.975         # CVaR confidence level for the second line of defense
     overdraft_hard_block: bool = True  # if True, overdraft is a constraint, not just a cost
-    max_single_sweep_frac: float = 0.60  # hard limit: max frac of EOD cash swept into Tier 1
+    # Hard limit: max frac of EOD cash swept into Tier1. NOT meant to be the
+    # thing that actually sizes the buffer -- that's the newsvendor quantile
+    # (engine/risk/newsvendor.py). It exists purely as a sanity backstop
+    # against a broken forecaster recommending an absurd sweep. At this
+    # dataset's scale ($2B capital vs. $10-47M of nightly path-max risk --
+    # DATA_AUDIT.md Section 11), the risk-correct buffer is routinely <5% of
+    # cash, so the backstop must sit near 1.0 or it silently becomes the
+    # *binding* constraint and the newsvendor sizing never actually executes
+    # (caught via a Phase 4 smoke test: a 0.60 cap forced ~40% of cash to sit
+    # idle every single night regardless of day-of-week risk -- docs/DECISIONS.md).
+    max_single_sweep_frac: float = 0.98
     bond_dv01_cap_frac: float = 0.50     # hard limit: max frac of core balance in Tier 2
     equity_cap_frac: float = 0.10        # hard limit: max frac of strategic surplus in Tier 3
     four_eyes_threshold_usd: float = 2_000_000.0  # sweeps above this need a second approval

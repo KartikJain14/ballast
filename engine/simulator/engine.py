@@ -251,10 +251,16 @@ class Simulator:
         total_fees = ledger.cumulative_fees_paid
         n_breaks = int((trace[["waterfall_tier1", "waterfall_tier2", "waterfall_tier3"]] > 1e-6).to_numpy().sum())
         n_overdraft_draws = int((trace["waterfall_overdraft"] > 1e-6).sum())
-        total_cost_of_liquidity = total_fees  # fees already nets out MTM losses, haircuts, overdraft interest
+        # Foregone yield: interest NOT earned on the average Tier0 cash that sat
+        # idle instead of being swept at the prevailing repo rate. Combined with
+        # fees/haircuts/penalties (already captured in cumulative_fees_paid, which
+        # includes break fees, liquidation haircuts, MTM losses, and capitalized
+        # overdraft interest), this is the brief's Section 6 "total cost of
+        # liquidity = foregone yield + fees + penalties."
         foregone_tier0_interest = trace["tier0"].mean() * (
             self.df["tier1_repo_rate_apy"].mean() / 100.0
         ) * (n_hours / 8760.0)
+        total_cost_of_liquidity = total_fees + foregone_tier0_interest
         return {
             "n_hours": n_hours,
             "avg_total_balance": avg_balance,

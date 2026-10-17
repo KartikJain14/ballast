@@ -150,6 +150,29 @@ isn't hidden. This is exactly the kind of thing Operating Rule #1 ("never
 fabricate a flattering number") cuts both ways on -- don't pick a number so
 large the real finding disappears, either.
 
+**D8. Discovered that even the perfect-foresight Oracle shows overnight
+overdraft on 66 of 364 nights -- not a bug, but a capital-adequacy finding
+that's now central to the regret story.**
+Debugging why `OraclePolicy` (which sweeps exactly `cash_available -
+M_tonight_exact`, the realized path-max, and should mathematically achieve
+zero breach whenever it has enough cash to post that exact buffer) still
+showed ~527 hourly overnight overdraft events led to checking, for every one
+of the 364 nights, whether `cash_available_at_17:00 < M_tonight`. Result:
+**66 nights are genuinely capital-constrained** (Tier0 cash is less than that
+night's realized worst-case need before the sweep decision is even made --
+consistent with the -$2.53B structural annual decline from D6d eroding the
+$2B starting capital by Q4), and on **zero** of the remaining ~298 nights did
+the oracle ever breach. This is a clean, booleans-don't-lie correctness proof
+of the simulator and the oracle (`tests/test_oracle.py`), and it reframes
+part of the product story: **some overdraft in this dataset is a capital
+problem, not a forecasting or policy problem**, and no sweep policy --
+however smart -- can fix a night where the cash simply isn't there yet. This
+feeds directly into the regret-decomposition innovation (Phase 8): regret vs.
+the oracle must be split into forecast error / policy conservatism /
+structural (08:00-17:00 idle) / friction / **capital-constrained (irreducible)**
+buckets, or the product would implicitly overclaim what better forecasting
+can achieve.
+
 **D7. Ledger accrual modeled via a virtual `ACCRUAL_INCOME` account, not a
 manual reconciliation parameter.**
 First draft of `Ledger.reconcile()` took a `cumulative_accruals` argument the

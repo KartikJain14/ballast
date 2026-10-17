@@ -26,25 +26,18 @@ from engine.policy.baselines import (  # noqa: E402
 )
 
 
-def all_policies():
-    policies = [
+def all_policies(df):
+    from engine.policy.ballast_policy import BallastPolicy
+    from engine.policy.oracle import OraclePolicy
+    return [
         AllCashPolicy(),
         StaticBufferPolicy(50_000_000),
         FixedPctOfGrossPolicy(0.5),
         MovingAverageKSigmaPolicy(k=2.0),
         MillerOrrPolicy(),
+        BallastPolicy(),
+        OraclePolicy(df),
     ]
-    try:
-        from engine.policy.ballast_policy import BallastPolicy
-        policies.append(BallastPolicy())
-    except ImportError:
-        pass
-    try:
-        from engine.policy.oracle import OraclePolicy
-        policies.append(OraclePolicy())
-    except ImportError:
-        pass
-    return policies
 
 
 def main():
@@ -53,7 +46,7 @@ def main():
     sim = Simulator(df, cfg)
 
     results = {}
-    for policy in all_policies():
+    for policy in all_policies(df):
         t0 = time.time()
         res = sim.run(policy)
         dt = time.time() - t0
@@ -92,9 +85,19 @@ def write_results_md(results: dict, best_naive: str):
     if "ballast" in results:
         b = results["ballast"]
         base = results[best_naive]
-        lines.append(f"Ballast vs. best naive: "
-                      f"${base['total_cost_of_liquidity'] - b['total_cost_of_liquidity']:,.0f} "
-                      f"lower total cost of liquidity.\n")
+        improvement = base["total_cost_of_liquidity"] - b["total_cost_of_liquidity"]
+        lines.append(f"Ballast vs. best naive: ${improvement:,.0f} lower total cost of liquidity "
+                      f"({improvement / base['total_cost_of_liquidity'] * 100:.2f}%).\n")
+        if "oracle" in results:
+            o = results["oracle"]
+            denom = base["total_cost_of_liquidity"] - o["total_cost_of_liquidity"]
+            capture = improvement / denom if abs(denom) > 1e-9 else float("nan")
+            lines.append(
+                f"**Capture ratio** (how much of the best-naive-to-oracle gap Ballast closes): "
+                f"({base['total_cost_of_liquidity']:,.0f} - {b['total_cost_of_liquidity']:,.0f}) / "
+                f"({base['total_cost_of_liquidity']:,.0f} - {o['total_cost_of_liquidity']:,.0f}) "
+                f"= **{capture:.1%}**.\n"
+            )
     (ROOT / "docs" / "RESULTS.md").write_text("\n".join(lines), encoding="utf-8")
 
 
