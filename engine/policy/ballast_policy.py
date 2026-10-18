@@ -19,7 +19,7 @@ import pandas as pd
 
 from engine.config import EngineConfig
 from engine.policy.base import Policy, SimStateView
-from engine.risk.newsvendor import effective_quantile, empirical_quantile_buffer
+from engine.risk.newsvendor import critical_fractile, effective_quantile, empirical_quantile_buffer
 from engine.risk.pathmax import compute_nightly_path_max, is_weekend_night
 
 COLD_START_BUFFER_FRAC = 0.15  # fraction of cash held back before any history exists
@@ -43,6 +43,10 @@ class BallastPolicy(Policy):
     def __init__(self, min_nights: int = 8, lookback_nights: int = 180):
         self.min_nights = min_nights
         self.lookback_nights = lookback_nights
+        # One entry per 17:00 decision: what the policy knew and chose. Purely
+        # observational (the dashboard's "why this call" explorer reads it);
+        # nothing in the decision path reads it back.
+        self.decision_log: list[dict] = []
 
     def decide_sweep(self, t_idx: int, history: pd.DataFrame, state: SimStateView,
                       cfg: EngineConfig) -> float:
@@ -52,6 +56,11 @@ class BallastPolicy(Policy):
         cold_start_buffer = min(state.cash_available * COLD_START_BUFFER_FRAC, COLD_START_BUFFER_CAP_USD)
         nights = compute_nightly_path_max(history.tail(MAX_LOOKBACK_HOURS))
         if len(nights) == 0:
+            self.decision_log.append({
+                "t_idx": t_idx, "weekend": bool(tonight_is_weekend), "q_star": None, "q_eff": None,
+                "buffer": cold_start_buffer, "cash_available": state.cash_available,
+                "n_samples": 0, "basis": "cold_start",
+            })
             return max(0.0, state.cash_available - cold_start_buffer)
 
         same_regime = nights[nights["dow"].isin([4, 5])] if tonight_is_weekend else nights[~nights["dow"].isin([4, 5])]
@@ -71,6 +80,14 @@ class BallastPolicy(Policy):
         )
         self._last_buffer = buffer
         self._last_same_regime = same_regime
+        self.decision_log.append({
+            "t_idx": t_idx, "weekend": bool(tonight_is_weekend),
+            "q_star": critical_fractile(break_fee, repo_rate), "q_eff": q_eff,
+            "buffer": buffer, "cash_available": state.cash_available,
+            "n_samples": int(len(same_regime)),
+            "basis": "regime_quantile" if len(same_regime) >= self.min_nights else "pooled_fallback",
+            "repo_rate": repo_rate, "break_fee": break_fee,
+        })
         return max(0.0, state.cash_available - buffer)
 
     def decide_bond_target_usd(self, t_idx, history, state, cfg):

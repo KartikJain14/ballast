@@ -150,10 +150,10 @@
   .legend-mark { display: inline-block; width: 10px; height: 1.5px; margin-right: 8px; vertical-align: middle; }
 
   .two-col { display: grid; grid-template-columns: 1.35fr 1fr; gap: 56px; }
-  @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; gap: 40px; } }
+  @media screen and (max-width: 860px) { .two-col { grid-template-columns: 1fr; gap: 40px; } }
 
   .raw-grid { display: grid; grid-template-columns: 0.85fr 1.3fr; gap: 56px; align-items: center; }
-  @media (max-width: 860px) { .raw-grid { grid-template-columns: 1fr; gap: 28px; } }
+  @media screen and (max-width: 860px) { .raw-grid { grid-template-columns: 1fr; gap: 28px; } }
 
   .slider-panel { padding: 28px 24px; }
   .slider-readout { margin-bottom: 28px; }
@@ -230,6 +230,213 @@
   footer .made-by { margin-top: 18px; font-size: 0.76rem; letter-spacing: 0.02em; }
   footer .made-by a { color: var(--ink-dim); }
   footer .made-by a:hover { color: var(--gold); }
+
+  /* ---------- LIGHT THEME (also the print palette) ---------- */
+  :root { --nav-bg: rgba(11,11,12,0.9); }
+  :root[data-theme="light"] {
+    --obsidian: #f7f5f0; --panel: #efece5; --panel-hi: #e6e2d8;
+    --hairline: rgba(28,26,22,0.11); --hairline-strong: rgba(28,26,22,0.22);
+    --ink: #1d1b18; --ink-dim: #4f4b44; --ink-faint: #7d786e;
+    --gold: #94722f; --gold-dim: #8a6d33; --sage: #5c8761; --terracotta: #a65a48;
+    --nav-bg: rgba(247,245,240,0.92);
+  }
+  body, header.topbar, footer { transition: background-color 0.3s ease, color 0.3s ease; }
+
+  /* ---------- SECTION NAV ---------- */
+  #section-nav {
+    display: none; position: sticky; top: 0; z-index: 40; background: var(--nav-bg);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--hairline); margin: 0 0 8px;
+  }
+  #section-nav.show { display: block; }
+  .nav-inner { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 12px 0; }
+  .nav-inner::-webkit-scrollbar { display: none; }
+  .nav-inner a {
+    font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint);
+    text-decoration: none; padding: 6px 12px; white-space: nowrap; border: 1px solid transparent; border-radius: 2px;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .nav-inner a:hover { color: var(--ink); }
+  .nav-inner a.active { color: var(--gold); border-color: var(--hairline-strong); }
+  section { scroll-margin-top: 64px; }
+
+  /* ---------- TOPBAR EXTRAS ---------- */
+  .menu-wrap { position: relative; }
+  .menu {
+    display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 250px;
+    background: var(--panel-hi); border: 1px solid var(--hairline-strong); padding: 6px 0;
+  }
+  .menu.open { display: block; }
+  .menu button {
+    display: block; width: 100%; text-align: left; background: none; border: none; color: var(--ink);
+    font-family: var(--sans); font-size: 0.8rem; padding: 10px 16px; cursor: pointer;
+  }
+  .menu button:hover { background: rgba(201,168,106,0.08); color: var(--gold); }
+  .menu button small { display: block; color: var(--ink-faint); font-size: 0.7rem; margin-top: 2px; }
+  .btn.icon { padding: 10px 13px; }
+
+  /* generic body wrapper that the pending/ready states hide and reveal */
+  .section-pending .sec-body { opacity: 0; height: 0; overflow: hidden; }
+  .section-ready .sec-body { opacity: 1; height: auto; overflow: visible; transition: opacity 0.9s ease; }
+  .section-error .pending-note { color: var(--terracotta); font-style: normal; }
+  .section-error .pending-note::after { display: none; }
+
+  /* ---------- DATA QUALITY ---------- */
+  .check-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0; border-top: 1px solid var(--hairline); }
+  .check-cell { padding: 18px 20px 18px 0; border-bottom: 1px solid var(--hairline); }
+  .check-cell .label { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+  .check-cell .value { font-family: var(--mono); font-size: 0.95rem; color: var(--ink); }
+  .check-cell .value .ok { color: var(--sage); }
+  .check-cell .value .bad { color: var(--terracotta); }
+  .notes { margin-top: 18px; font-size: 0.78rem; color: var(--ink-faint); }
+  .notes li { margin-top: 4px; }
+
+  /* ---------- METHOD STEPS ---------- */
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--hairline); }
+  @media screen and (max-width: 960px) { .steps { grid-template-columns: 1fr; } }
+  .step { padding: 22px 20px 24px 0; border-bottom: 1px solid var(--hairline); position: relative; }
+  .step + .step { padding-left: 20px; border-left: 1px solid var(--hairline); }
+  @media screen and (max-width: 960px) { .step + .step { padding-left: 0; border-left: none; } }
+  .step .n { font-family: var(--mono); font-size: 0.7rem; color: var(--gold-dim); margin-bottom: 10px; }
+  .step .t { font-family: var(--serif); font-size: 1.08rem; color: var(--ink); margin-bottom: 8px; line-height: 1.3; }
+  .step .d { font-size: 0.8rem; color: var(--ink-dim); font-weight: 300; line-height: 1.55; }
+  .step .live { margin-top: 12px; font-family: var(--mono); font-size: 0.82rem; color: var(--gold); line-height: 1.5; }
+
+  /* ---------- DECISION EXPLORER ---------- */
+  .cal-wrap { overflow-x: auto; padding-bottom: 6px; }
+  .cal-months { display: grid; grid-auto-flow: column; grid-auto-columns: 15px; gap: 3px; margin-left: 34px;
+    font-size: 0.64rem; color: var(--ink-faint); height: 16px; }
+  .cal-body { display: flex; gap: 8px; }
+  .cal-days { display: grid; grid-template-rows: repeat(7, 15px); gap: 3px; font-size: 0.6rem; color: var(--ink-faint);
+    width: 26px; text-align: right; line-height: 15px; }
+  .cal-grid { display: grid; grid-template-rows: repeat(7, 15px); grid-auto-flow: column; grid-auto-columns: 15px; gap: 3px; }
+  .cal-cell { width: 15px; height: 15px; border-radius: 2px; cursor: pointer; border: 1px solid transparent;
+    transition: transform 0.12s ease; }
+  .cal-cell:hover { transform: scale(1.25); }
+  .cal-cell.empty { cursor: default; background: transparent; }
+  .cal-cell.empty:hover { transform: none; }
+  .cal-cell.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--gold); }
+  .oc-covered { background: var(--sage); }
+  .oc-short { background: var(--terracotta); }
+  .oc-constrained { background: var(--ink-faint); opacity: 0.55; }
+  .oc-warmup { background: var(--sage); opacity: 0.35; }
+  .cal-legend { display: flex; flex-wrap: wrap; gap: 22px; margin: 16px 0 0; font-size: 0.76rem; color: var(--ink-dim); }
+  .cal-legend span.sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+  .night-card { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+  @media screen and (max-width: 900px) { .night-card { grid-template-columns: 1fr; gap: 28px; } }
+  .night-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .night-date { font-family: var(--serif); font-size: 1.4rem; }
+  .night-tag { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 9px; border: 1px solid var(--hairline-strong); color: var(--ink-dim); }
+  .night-tag.covered { color: var(--sage); border-color: var(--sage); }
+  .night-tag.short { color: var(--terracotta); border-color: var(--terracotta); }
+  .night-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .night-nav .btn { padding: 7px 12px; font-size: 0.72rem; }
+  .split-bar { display: flex; height: 8px; background: var(--hairline); margin: 4px 0 10px; overflow: hidden; }
+  .split-bar .held { background: var(--gold); }
+  .split-bar .swept { background: var(--sage); opacity: 0.7; }
+  .split-legend { display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--ink-faint); margin-bottom: 22px; }
+  .night-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 20px; margin-bottom: 24px; }
+  .night-stats .label { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }
+  .night-stats .value { font-family: var(--mono); font-size: 0.98rem; color: var(--ink); }
+  .why { border-left: 1px solid var(--gold-dim); padding-left: 18px; font-size: 0.88rem; color: var(--ink-dim); font-weight: 300; line-height: 1.7; }
+  .why strong { color: var(--ink); font-weight: 500; }
+  .why .why-title { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 8px; font-weight: 400; }
+  .why p { margin: 0 0 10px; }
+  .calib { margin-top: 44px; display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: center;
+    padding-top: 28px; border-top: 1px solid var(--hairline); }
+  @media screen and (max-width: 760px) { .calib { grid-template-columns: 1fr; gap: 16px; } }
+  .calib .big { font-family: var(--serif); font-size: 2.4rem; color: var(--ink); line-height: 1; }
+  .calib .big small { font-size: 0.9rem; color: var(--ink-faint); font-family: var(--sans); margin-left: 8px; }
+
+  /* ---------- CALCULATOR ---------- */
+  .calc { display: grid; grid-template-columns: 0.9fr 1.4fr; gap: 56px; }
+  @media screen and (max-width: 900px) { .calc { grid-template-columns: 1fr; gap: 32px; } }
+  .field { margin-bottom: 20px; }
+  .field label { display: block; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
+  .field .hint { font-size: 0.72rem; color: var(--ink-faint); margin-top: 6px; font-weight: 300; }
+  .field input[type="number"], .field input[type="date"], .field select {
+    width: 100%; background: transparent; border: 1px solid var(--hairline-strong); color: var(--ink);
+    font-family: var(--mono); font-size: 0.95rem; padding: 10px 12px; border-radius: 2px; outline: none;
+  }
+  .field select { font-family: var(--sans); }
+  .field select option { background: var(--panel-hi); color: var(--ink); }
+  .field input:focus, .field select:focus { border-color: var(--gold); }
+  .formula { display: grid; grid-template-columns: auto 1fr auto; column-gap: 18px; align-items: baseline;
+    font-family: var(--mono); font-size: 0.84rem; color: var(--ink); line-height: 2.1; margin-bottom: 22px;
+    padding: 16px 20px; background: var(--panel); border: 1px solid var(--hairline); overflow-x: auto; }
+  .formula .res { color: var(--gold); }
+  .formula span:nth-child(3n) { text-align: right; }
+  .formula .muted { color: var(--ink-faint); }
+  .binding { font-size: 0.82rem; color: var(--ink-dim); margin-bottom: 22px; }
+  .binding strong { color: var(--ink); font-weight: 500; }
+  .calc-total { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 22px; }
+  .calc-total .label { font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+  .calc-total .value { font-family: var(--serif); font-size: 1.7rem; color: var(--gold); }
+  .calc-total .value.plain { color: var(--ink); }
+
+  /* ---------- STRESS LAB ---------- */
+  .lab { margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--hairline); }
+  .lab h3 { font-size: 1.25rem; margin-bottom: 6px; }
+  .lab-form { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr auto; gap: 16px; align-items: end; margin-top: 22px; }
+  @media screen and (max-width: 900px) { .lab-form { grid-template-columns: 1fr 1fr; } }
+  .lab-form .field { margin-bottom: 0; }
+  .lab-result { margin-top: 28px; }
+  .lab-verdict { font-family: var(--serif); font-size: 1.15rem; margin-bottom: 18px; }
+  .lab-verdict.ok { color: var(--sage); }
+  .lab-verdict.fail { color: var(--terracotta); }
+  .lab-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 18px; margin-bottom: 22px; }
+  .lab-stats .label { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }
+  .lab-stats .value { font-family: var(--mono); font-size: 0.98rem; color: var(--ink); }
+  .spinner-note { font-size: 0.82rem; color: var(--ink-faint); font-style: italic; }
+
+  /* ---------- INTEGRITY + ASSUMPTIONS ---------- */
+  .audit-row { display: grid; grid-template-columns: 90px 1fr; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--hairline); }
+  .audit-row .st { font-family: var(--mono); font-size: 0.76rem; letter-spacing: 0.05em; }
+  .audit-row .st.ok { color: var(--sage); }
+  .audit-row .st.fail { color: var(--terracotta); }
+  .audit-row .nm { color: var(--ink); font-size: 0.92rem; margin-bottom: 3px; }
+  .audit-row .dt { color: var(--ink-faint); font-size: 0.8rem; font-weight: 300; }
+  table.reg { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  table.reg td { padding: 14px 16px 14px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  table.reg td:first-child { width: 96px; }
+  table.reg td.what { color: var(--ink); width: 34%; }
+  table.reg td.reg-why { color: var(--ink-dim); font-weight: 300; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; padding: 3px 7px;
+    border: 1px solid var(--hairline-strong); color: var(--ink-dim); }
+  .tag.brief { color: var(--gold); border-color: var(--gold-dim); }
+  .tag.data { color: var(--sage); border-color: var(--sage); }
+  .tag.assumed { color: var(--terracotta); border-color: var(--terracotta); }
+
+  #print-header { display: none; }
+
+  /* ---------- PRINT ---------- */
+  @media print {
+    @page { margin: 14mm 12mm; }
+    /* Lay the page out at desktop width and scale it onto A4, so multi-column
+       grids stay multi-column instead of collapsing to their mobile layout. */
+    body { background: #fff !important; zoom: 0.68; }
+    header.topbar, #section-nav, #status-strip, #landing, .depth-toggle, .night-nav, .lab-form,
+      .pending-slot, #chart-tooltip, .no-print { display: none !important; }
+    main { padding: 0 !important; }
+    .wrap { max-width: none; padding: 0; }
+    section { margin-top: 44px !important; }
+    .panel, .step, .audit-row, tr, .check-cell, .kpi-cell, .night-card, .calib, .formula, canvas, .status-item,
+      .raw-grid, .two-col { break-inside: avoid; page-break-inside: avoid; }
+    h2, h3, .eyebrow, .section-sub { break-after: avoid; page-break-after: avoid; }
+    #summary-text { display: block !important; }
+    canvas { max-width: 100% !important; height: auto !important; }
+    #depth-table-wrap { display: block !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    #print-header { display: block; border-bottom: 2px solid #1d1b18; padding-bottom: 12px; margin-bottom: 8px; }
+    #print-header .ph-brand { font-family: var(--serif); font-size: 22px; }
+    #print-header .ph-meta { font-size: 10px; color: #4f4b44; margin-top: 4px; }
+    footer { margin-top: 30px; padding: 16px 0 0; }
+    /* A printed report leads with the verdict, then the evidence. */
+    #results { display: flex !important; flex-direction: column; }
+    #print-header { order: -3; }
+    #kpi-section { order: -2; margin-top: 18px !important; }
+    #summary-section { order: -1; break-after: page; page-break-after: always; }
+  }
 </style>
 </head>
 <body>
@@ -238,6 +445,17 @@
   <div class="topbar-inner">
     <div class="brand">Ballast<span class="rule"></span><span class="tag">Treasury Intelligence</span></div>
     <div class="topbar-actions">
+      <button class="btn" id="btn-print" style="display:none;" title="Print, or save as PDF">Print Report</button>
+      <div class="menu-wrap" id="export-wrap" style="display:none;">
+        <button class="btn" id="btn-export">Export ▾</button>
+        <div class="menu" id="export-menu">
+          <button data-export="decisions">Nightly decisions (CSV)<small>One row per 17:00 call: buffer, sweep, outcome</small></button>
+          <button data-export="scoreboard">Strategy scoreboard (CSV)<small>Every metric for every strategy</small></button>
+          <button data-export="monthly">Monthly P&amp;L (CSV)<small>Ballast vs. the best fixed buffer</small></button>
+          <button data-export="json">Full results (JSON)<small>Everything on this page, machine-readable</small></button>
+        </div>
+      </div>
+      <button class="btn icon" id="btn-theme" title="Toggle light / dark">◐</button>
       <button class="btn" id="btn-reset" style="display:none;">New Analysis</button>
       <input type="file" id="file-input" accept=".csv" />
       <button class="btn" id="btn-upload-top" style="display:none;">Upload Data</button>
@@ -274,6 +492,15 @@
       </div>
     </div>
 
+    <div id="print-header"><div class="ph-brand">Ballast — Treasury Liquidity Report</div><div class="ph-meta" id="print-meta"></div></div>
+
+    <nav id="section-nav"><div class="nav-inner">
+      <a href="#raw-section">Data</a><a href="#dow-section">Risk</a><a href="#method-section">Method</a>
+      <a href="#decision-section">Decisions</a><a href="#calc-section">Calculator</a><a href="#score-section">Strategies</a>
+      <a href="#income-section">Backtest</a><a href="#stress-section">Stress</a><a href="#integrity-section">Audit</a>
+      <a href="#kpi-section">Verdict</a>
+    </div></nav>
+
     <section id="raw-section" class="section-pending" style="margin-top:0;">
       <div class="raw-grid">
         <div>
@@ -293,16 +520,16 @@
       <div class="pending-slot pending-note">Reading the uploaded file…</div>
     </section>
 
-    <section id="summary-section" class="section-pending">
-      <div class="eyebrow">Executive Summary</div>
-      <div id="summary-card">
-        <div id="summary-text" class="pending-slot"><span class="skeleton-line"></span><span class="skeleton-line" style="width:70%; margin-top:8px;"></span></div>
+    <section id="quality-section" class="section-pending">
+      <div class="eyebrow">Data Quality</div>
+      <h2 class="section-title">Checked before a single dollar is simulated</h2>
+      <p class="section-sub">Every file is validated on arrival. A gap, a duplicate hour or an inconsistent row would
+         silently bias every number below, so the engine refuses data it cannot trust.</p>
+      <div class="sec-body">
+        <div class="check-grid" id="quality-grid"></div>
+        <ul class="notes" id="quality-notes"></ul>
       </div>
-    </section>
-
-    <section id="kpi-section" class="section-pending">
-      <div class="kpi-row" id="kpi-row"></div>
-      <div class="pending-slot pending-note">Running strategy simulations…</div>
+      <div class="pending-slot pending-note">Validating the file…</div>
     </section>
 
     <section id="flow-section" class="section-pending">
@@ -327,6 +554,72 @@
       <div class="pending-slot pending-note">Measuring overnight path-max risk…</div>
     </section>
 
+    <section id="spike-section" class="section-pending">
+      <div class="eyebrow">Anomaly Detection</div>
+      <h2 class="section-title">Spikes and depressions, explained</h2>
+      <p class="section-sub">The largest single-hour flow events, classified from calendar position alone —
+         not hardcoded dates, so this holds for any period you provide.</p>
+      <div class="two-col">
+        <div class="panel"><canvas id="chart-spikes" height="220"></canvas></div>
+        <div class="panel">
+          <div style="font-size:0.78rem; color:var(--ink-faint); letter-spacing:0.04em; text-transform:uppercase;">Likely cause</div>
+          <div id="cause-bars"></div>
+        </div>
+      </div>
+      <div class="pending-slot pending-note">Scanning for unusual flow events…</div>
+    </section>
+
+    <section id="method-section" class="section-pending">
+      <div class="eyebrow">How Ballast Decides</div>
+      <h2 class="section-title">Five steps at 17:00, every night</h2>
+      <p class="section-sub">The whole strategy fits on one line: hold exactly what tonight's worst hour could demand,
+         priced against what an idle dollar costs, and put everything else to work. The figures in gold are this
+         dataset's own.</p>
+      <div class="sec-body"><div class="steps" id="method-steps"></div></div>
+      <div class="pending-slot pending-note">Deriving the decision rule from your data…</div>
+    </section>
+
+    <section id="decision-section" class="section-pending">
+      <div class="eyebrow">Decision Log</div>
+      <h2 class="section-title">Every night, every call — and why</h2>
+      <p class="section-sub">Each square is one 17:00 decision. Click any night to see what Ballast knew, how much it
+         held back, what it swept into repo, and what the night then did.</p>
+      <div class="sec-body">
+        <div class="cal-wrap"><div id="cal"></div></div>
+        <div class="cal-legend">
+          <span><span class="sw oc-covered"></span>Buffer covered the night</span>
+          <span><span class="sw oc-short"></span>Drain beat the buffer — repo broken early</span>
+          <span><span class="sw oc-constrained"></span>Drain exceeded all free cash — no strategy could cover</span>
+          <span><span class="sw oc-warmup"></span>Warm-up: too little history yet</span>
+        </div>
+        <div class="night-card">
+          <div>
+            <div class="night-head"><div class="night-date" id="nc-date">—</div><span class="night-tag" id="nc-tag">—</span></div>
+            <div class="night-nav">
+              <button class="btn" id="nc-prev">← Previous</button>
+              <button class="btn" id="nc-next">Next →</button>
+              <button class="btn" id="nc-worst">Largest drain</button>
+              <button class="btn" id="nc-miss">Next miss</button>
+            </div>
+            <div class="split-bar"><div class="held" id="nc-bar-held"></div><div class="swept" id="nc-bar-swept"></div></div>
+            <div class="split-legend"><span id="nc-held-lbl">Held</span><span id="nc-swept-lbl">Swept</span></div>
+            <div class="night-stats" id="nc-stats"></div>
+          </div>
+          <div>
+            <div class="panel"><canvas id="chart-night" height="200"></canvas>
+              <div class="legend-row">
+                <span><span class="legend-mark" id="nc-path-mark" style="background:var(--sage)"></span>Cumulative outflow, 17:00 → 08:00</span>
+                <span><span class="legend-mark" style="background:var(--gold)"></span>Buffer held</span>
+              </div>
+            </div>
+            <div class="why" id="nc-why" style="margin-top:26px;"></div>
+          </div>
+        </div>
+        <div class="calib" id="calib"></div>
+      </div>
+      <div class="pending-slot pending-note">Replaying every 17:00 decision…</div>
+    </section>
+
     <section id="slider-section" class="section-pending">
       <div class="eyebrow">Risk Appetite</div>
       <h2 class="section-title">What does the next "nine" of confidence cost?</h2>
@@ -349,19 +642,29 @@
       <div class="pending-slot pending-note">Building the cost-of-confidence curve…</div>
     </section>
 
-    <section id="spike-section" class="section-pending">
-      <div class="eyebrow">Anomaly Detection</div>
-      <h2 class="section-title">Spikes and depressions, explained</h2>
-      <p class="section-sub">The largest single-hour flow events, classified from calendar position alone —
-         not hardcoded dates, so this holds for any period you provide.</p>
-      <div class="two-col">
-        <div class="panel"><canvas id="chart-spikes" height="220"></canvas></div>
+    <section id="calc-section" class="section-pending">
+      <div class="eyebrow">Reserve Calculator</div>
+      <h2 class="section-title">Size tonight's reserve yourself</h2>
+      <p class="section-sub">Change the rates, the lock window or the coverage you insist on. The calculator applies
+         Ballast's exact rule to this dataset's measured overnight drains and shows every step of the arithmetic.</p>
+      <div class="sec-body calc">
         <div>
-          <div style="font-size:0.78rem; color:var(--ink-faint); letter-spacing:0.04em; text-transform:uppercase;">Likely cause</div>
-          <div id="cause-bars"></div>
+          <div class="field"><label for="c-rate">Repo rate (APY, %)</label><input type="number" id="c-rate" step="0.01" min="0" /></div>
+          <div class="field"><label for="c-fee">Early-break fee (%)</label><input type="number" id="c-fee" step="0.01" min="0" />
+            <div class="hint">Cost of pulling locked repo cash back before 08:00.</div></div>
+          <div class="field"><label for="c-hours">Lock window (hours)</label><input type="number" id="c-hours" step="1" min="1" max="72" /></div>
+          <div class="field"><label for="c-floor">Coverage floor (%)</label><input type="number" id="c-floor" step="0.05" min="50" max="99.99" />
+            <div class="hint">The treasury's minimum, applied if stricter than the economic optimum.</div></div>
+          <div class="field"><label for="c-cash">Free cash at 17:00 ($M)</label><input type="number" id="c-cash" step="10" min="0" /></div>
+        </div>
+        <div>
+          <div class="formula" id="c-formula"></div>
+          <div class="binding" id="c-binding"></div>
+          <div class="depth-table-wrap" style="margin-top:0;"><table class="depth-table" id="c-table"></table></div>
+          <div class="calc-total" id="c-total"></div>
         </div>
       </div>
-      <div class="pending-slot pending-note">Scanning for unusual flow events…</div>
+      <div class="pending-slot pending-note">Loading the overnight drain distribution…</div>
     </section>
 
     <section id="score-section" class="section-pending">
@@ -376,12 +679,27 @@
       <div class="pending-slot pending-note">Comparing five independent strategies…</div>
     </section>
 
+    <section id="income-section" class="section-pending">
+      <div class="eyebrow">Backtest</div>
+      <h2 class="section-title">Net income, day by day</h2>
+      <p class="section-sub">Interest earned minus every fee, haircut and penalty, accumulated through the year for each
+         strategy — a chronological replay with no look-ahead.</p>
+      <div class="sec-body">
+        <div class="panel"><canvas id="chart-income" height="260"></canvas><div class="legend-row" id="income-legend"></div></div>
+        <div class="takeaway" id="income-takeaway"></div>
+        <h3 style="font-size:1.15rem; margin:48px 0 6px;">Month by month</h3>
+        <p class="section-sub" style="margin-bottom:14px;" id="monthly-sub"></p>
+        <div class="depth-table-wrap" style="margin-top:0;"><table class="depth-table" id="monthly-table"></table></div>
+      </div>
+      <div class="pending-slot pending-note">Accumulating net income across the year…</div>
+    </section>
+
     <section id="regret-section" class="section-pending">
       <div class="eyebrow">Attribution</div>
       <h2 class="section-title">The remaining distance to optimal</h2>
       <div class="two-col">
         <div class="panel"><canvas id="chart-regret" height="220"></canvas></div>
-        <div class="kpi-cell" style="border:none; padding:0;">
+        <div class="kpi-cell panel" style="border:none; padding:0;">
           <div class="label">Capital-constrained nights</div>
           <div class="value num" id="regret-capital">—</div>
           <div class="delta">No strategy — including a perfect forecaster — resolves these. A capital question, not a strategy one.</div>
@@ -396,7 +714,60 @@
       <p class="section-sub">Each scenario replays the period with a shock applied against a finite emergency credit
          facility, calibrated so the unshocked period survives — any failure below is attributable to the shock itself.</p>
       <div class="status-row" id="stress-pills"></div>
+      <div class="sec-body lab no-print-when-empty" id="lab">
+        <h3>Stress Lab</h3>
+        <p class="section-sub" style="margin-bottom:0;">Design your own shock. It is replayed hour by hour through the
+           same engine, funding waterfall and emergency line as the scenarios above.</p>
+        <div class="lab-form">
+          <div class="field"><label for="lab-scn">Scenario</label>
+            <select id="lab-scn">
+              <option value="withdrawal_surge">Withdrawal surge (holiday, panic)</option>
+              <option value="deposit_freeze">Deposits stop (payment-rail outage)</option>
+              <option value="bank_run">Bank run (SVB-style)</option>
+              <option value="payday_surge">Deposit surge (payday)</option>
+            </select></div>
+          <div class="field"><label for="lab-start">Shock starts</label><input type="date" id="lab-start" /></div>
+          <div class="field"><label for="lab-mult" id="lab-mult-lbl">Multiplier (×)</label><input type="number" id="lab-mult" step="0.5" min="0.5" value="3" /></div>
+          <div class="field"><label for="lab-dur">Duration (hours)</label><input type="number" id="lab-dur" step="6" min="1" max="336" value="48" /></div>
+          <button class="btn primary" id="lab-run">Run scenario</button>
+        </div>
+        <div class="lab-result" id="lab-result"></div>
+      </div>
       <div class="pending-slot pending-note">Applying stress scenarios…</div>
+    </section>
+
+    <section id="integrity-section" class="section-pending">
+      <div class="eyebrow">Audit</div>
+      <h2 class="section-title">Proven on this run, not asserted</h2>
+      <p class="section-sub">These invariants are re-checked against the full hour-by-hour ledger of every analysis,
+         including files uploaded a minute ago.</p>
+      <div class="sec-body" id="integrity-list"></div>
+      <div class="pending-slot pending-note">Re-checking the ledger…</div>
+    </section>
+
+    <section id="assumptions-section" class="section-ready">
+      <div class="eyebrow">Assumptions Register</div>
+      <h2 class="section-title">Every judgment call, in the open</h2>
+      <p class="section-sub">Where the brief or the data left a choice, it is recorded here with its source.
+         <span class="tag brief">BRIEF</span> stated in the problem statement ·
+         <span class="tag data">DATA</span> read from the file ·
+         <span class="tag">DESIGN</span> our choice, tested ·
+         <span class="tag assumed">ASSUMED</span> unknown, parameterized.</p>
+      <div class="sec-body"><table class="reg" id="assumptions-table"></table></div>
+    </section>
+
+    <section id="kpi-section" class="section-pending">
+      <div class="eyebrow">The Verdict</div>
+      <h2 class="section-title" style="margin-bottom:36px;">Ballast across the full period</h2>
+      <div class="kpi-row" id="kpi-row"></div>
+      <div class="pending-slot pending-note">Running strategy simulations…</div>
+    </section>
+
+    <section id="summary-section" class="section-pending" style="margin-top:56px;">
+      <div class="eyebrow">Executive Summary</div>
+      <div id="summary-card">
+        <div id="summary-text" class="pending-slot"><span class="skeleton-line"></span><span class="skeleton-line" style="width:70%; margin-top:8px;"></span></div>
+      </div>
     </section>
   </div>
 
@@ -419,10 +790,22 @@
     if (a >= 1e3) return (v/1e3).toFixed(0) + 'K';
     return v.toFixed(0);
   };
-  const COLORS = {
-    gold: '#c9a86a', goldDim: '#8d7650', ink: '#9a968d', inkFaint: '#5e5a53',
-    sage: '#8aa68d', terracotta: '#b17b6f', hair: 'rgba(236,233,228,0.1)',
+  // Chart palettes per theme. COLORS is mutated in place on a theme switch
+  // and every chart is redrawn from the stored results, so draw code always
+  // reads the live palette.
+  const PALETTES = {
+    dark: { gold: '#c9a86a', goldDim: '#8d7650', ink: '#9a968d', inkFaint: '#5e5a53', sage: '#8aa68d',
+            terracotta: '#b17b6f', hair: 'rgba(236,233,228,0.1)', zero: 'rgba(236,233,228,0.22)', text: '#ece9e4' },
+    light: { gold: '#a8843f', goldDim: '#8a6d33', ink: '#4f4b44', inkFaint: '#8a857b', sage: '#5c8761',
+             terracotta: '#a65a48', hair: 'rgba(28,26,22,0.12)', zero: 'rgba(28,26,22,0.32)', text: '#1d1b18' },
   };
+  let currentTheme = 'dark';
+  try { if (localStorage.getItem('ballast-theme') === 'light') currentTheme = 'light'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  const COLORS = Object.assign({}, PALETTES[currentTheme]);
+  // When true, charts draw their final frame synchronously instead of
+  // animating -- used for theme switches and printing.
+  let INSTANT = false;
 
   const STAGES = [
     ['validate', 'Validating data', ['Reading the file structure', 'Checking for gaps in the hourly series']],
@@ -430,6 +813,7 @@
     ['risk', 'Modeling overnight risk', ['Measuring the worst-case drain, hour by hour', 'Grouping nights by day of week']],
     ['sim', 'Running the strategies', ['Testing a strategy that never sweeps', 'Tuning a fixed daily cushion', 'Running Ballast’s adaptive strategy', 'Computing the theoretical best case']],
     ['stress', 'Applying stress scenarios', ['Simulating a bank-run style shock', 'Simulating a holiday demand surge', 'Checking the funding waterfall']],
+    ['audit', 'Running integrity checks', ['Re-proving cash conservation, hour by hour', 'Re-running decisions with the future deleted']],
     ['done', 'Finalizing the report', ['Assembling the figures']],
   ];
   let currentStageKey = null, subcopyTimer = null, subcopyIdx = 0;
@@ -503,39 +887,107 @@
 
   function markReady(sectionId) {
     const el = $(sectionId);
-    el.classList.remove('section-pending'); el.classList.add('section-ready', 'in');
+    el.classList.remove('section-pending', 'section-error'); el.classList.add('section-ready', 'in');
   }
 
-  const rendered = { flows: false, risk: false, scoreboard: false, regret: false, stress: false };
+  // Everything received for the current analysis, keyed like the API payload.
+  let state = {};
+  let currentJobId = null;
+  let datasetLabel = '';
+  let labLast = null; // last Stress Lab result, kept for redraws
 
-  async function runJob(fetchPromise) {
+  // Each renderer fires once, as soon as every payload key it needs exists,
+  // and reveals its sections. A renderer that throws marks only its own
+  // sections as failed instead of taking down the whole page.
+  const RENDERERS = [
+    { needs: ['validation'], sections: ['#quality-section'], fn: s => renderQuality(s.validation) },
+    { needs: ['flows'], sections: ['#raw-section', '#flow-section', '#spike-section'],
+      fn: s => { renderRaw(s.flows); renderFlows(s.flows); } },
+    { needs: ['risk'], sections: ['#dow-section', '#slider-section', '#calc-section'],
+      fn: s => { renderRisk(s.risk); renderSlider(s.risk); renderCalculator(s.risk); } },
+    { needs: ['risk', 'validation'], sections: ['#method-section'], fn: s => renderMethod(s) },
+    { needs: ['scoreboard'], sections: ['#kpi-section', '#score-section'], fn: s => renderScoreboard(s.scoreboard) },
+    { needs: ['net_income_daily', 'monthly', 'scoreboard'], sections: ['#income-section'], fn: s => renderIncome(s) },
+    { needs: ['regret'], sections: ['#regret-section'], fn: s => renderRegret(s.regret) },
+    { needs: ['decisions', 'calibration'], sections: ['#decision-section'], fn: s => renderDecisions(s) },
+    { needs: ['stress'], sections: ['#stress-section'], fn: s => renderStress(s) },
+    { needs: ['integrity'], sections: ['#integrity-section'], fn: s => renderIntegrity(s.integrity) },
+  ];
+  const isReady = (r) => r.needs.every(k => state[k] !== undefined && state[k] !== null);
+
+  function runRenderer(r) {
+    try {
+      r.fn(state);
+      r.sections.forEach(markReady);
+    } catch (e) {
+      console.error('Render failed for', r.sections, e);
+      r.sections.forEach(id => {
+        const el = $(id); el.classList.add('section-error');
+        const note = el.querySelector('.pending-note');
+        if (note) note.textContent = 'This section could not be displayed for this dataset (' + (e.message || e) + ').';
+      });
+    }
+  }
+
+  // Redraws every rendered section from stored results with no animation --
+  // for a theme switch and for printing.
+  function rerenderAll() {
+    INSTANT = true;
+    try {
+      RENDERERS.forEach(r => { if (r.done) { try { r.fn(state); } catch (e) { console.error(e); } } });
+      if (labLast) drawLabChart(labLast);
+    } finally { INSTANT = false; }
+  }
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    Object.assign(COLORS, PALETTES[theme]);
+    rerenderAll();
+  }
+  $('#btn-theme').addEventListener('click', () => {
+    const next = currentTheme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('ballast-theme', next); } catch (e) {}
+    applyTheme(next);
+  });
+
+  const resultSections = () => Array.from(document.querySelectorAll('#results section')).filter(el => el.id !== 'assumptions-section');
+
+  async function runJob(fetchPromise, label) {
+    datasetLabel = label || 'Uploaded dataset';
     $('#landing').style.display = 'none';
     $('#error-banner').style.display = 'none';
-    Object.keys(rendered).forEach(k => rendered[k] = false);
-    ['#raw-section','#summary-section','#kpi-section','#flow-section','#dow-section','#slider-section','#spike-section','#score-section','#regret-section','#stress-section']
-      .forEach(id => { const el = $(id); el.classList.add('section-pending'); el.classList.remove('section-ready'); });
+    state = {}; labLast = null; currentJobId = null; nightIdx = null;
+    RENDERERS.forEach(r => { r.done = false; });
+    resultSections().forEach(el => { el.classList.add('section-pending'); el.classList.remove('section-ready', 'section-error'); });
+    $('#lab-result').innerHTML = '';
     $('#results').style.display = 'block';
     $('#status-strip').classList.add('show');
+    $('#section-nav').classList.add('show');
     currentStageKey = null;
 
     try {
       const resp = await fetchPromise;
       if (!resp.ok) {
-        const body = await resp.json().catch(() => ({detail: resp.statusText}));
+        const body = await resp.json().catch(() => ({detail: resp.status === 413
+          ? 'The file is larger than the server accepts.' : resp.statusText}));
         throw new Error(body.detail || resp.statusText);
       }
       const { job_id } = await resp.json();
+      currentJobId = job_id;
 
       while (true) {
-        const r = await fetch(`/api/results/${job_id}`);
+        const have = Object.keys(state).filter(k => state[k] !== null && state[k] !== undefined);
+        const r = await fetch(`/api/results/${job_id}?skip=${encodeURIComponent(have.join(','))}`);
+        if (!r.ok) throw new Error('Lost contact with the analysis (' + r.status + ').');
         const d = await r.json();
+        if (job_id !== currentJobId) return; // a newer analysis replaced this one
         setStage(d.stage, d.percent);
-
-        if (d.flows && !rendered.flows) { rendered.flows = true; renderRaw(d.flows); renderFlows(d.flows); markReady('#raw-section'); markReady('#flow-section'); markReady('#spike-section'); }
-        if (d.risk && !rendered.risk) { rendered.risk = true; renderRisk(d.risk); renderSlider(d.risk); markReady('#dow-section'); markReady('#slider-section'); }
-        if (d.scoreboard && !rendered.scoreboard) { rendered.scoreboard = true; renderScoreboard(d.scoreboard); markReady('#kpi-section'); markReady('#score-section'); }
-        if (d.regret && !rendered.regret) { rendered.regret = true; renderRegret(d.regret); markReady('#regret-section'); }
-        if (d.stress && !rendered.stress) { rendered.stress = true; renderStress(d.stress); markReady('#stress-section'); }
+        Object.keys(d).forEach(k => {
+          if (['status', 'stage', 'percent', 'error'].includes(k)) return;
+          if (d[k] !== null && d[k] !== undefined) state[k] = d[k];
+        });
+        RENDERERS.forEach(rr => { if (!rr.done && isReady(rr)) { rr.done = true; runRenderer(rr); } });
 
         if (d.status === 'error') { throw new Error('Analysis failed: ' + (d.error || 'unknown error')); }
         if (d.status === 'done') break;
@@ -543,13 +995,15 @@
       }
 
       $('#status-strip').classList.remove('show');
-      $('#btn-reset').style.display = 'inline-block';
-      $('#btn-upload-top').style.display = 'inline-block';
+      ['#btn-reset', '#btn-upload-top', '#btn-print'].forEach(id => $(id).style.display = 'inline-block');
+      $('#export-wrap').style.display = 'inline-block';
+      $('#print-meta').textContent = printMeta();
 
       markReady('#summary-section');
       streamSummary(job_id);
     } catch (e) {
       $('#status-strip').classList.remove('show');
+      $('#section-nav').classList.remove('show');
       showError(e.message || String(e));
     }
   }
@@ -669,7 +1123,7 @@
           <div class="dname">${ds.name}</div><div class="ddesc">${ds.description}</div>`;
         card.addEventListener('click', () => {
           document.querySelectorAll('.dataset-card').forEach(c => c.classList.add('is-loading'));
-          runJob(fetch(`/api/run-dataset/${ds.key}`, { method: 'POST' }));
+          runJob(fetch(`/api/run-dataset/${ds.key}`, { method: 'POST' }), ds.name);
         });
         row.appendChild(card);
       });
@@ -688,9 +1142,23 @@
     $('#btn-depth-toggle').textContent = open ? 'View Detailed Metrics ▾' : 'Hide Detailed Metrics ▴';
   });
 
+  // A year of hourly data is ~1.2MB of CSV -- above the default request-body
+  // limit of common reverse proxies (nginx: 1MB). Gzipped it is ~3x smaller;
+  // the server detects the gzip magic bytes and inflates it.
+  async function gzipped(file) {
+    if (typeof CompressionStream === 'undefined') return file;
+    try {
+      const blob = await new Response(file.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+      return new File([blob], file.name + '.gz', { type: 'application/gzip' });
+    } catch (e) { return file; }
+  }
+
   function uploadFile(file) {
-    const form = new FormData(); form.append('file', file);
-    runJob(fetch('/api/upload', { method: 'POST', body: form }));
+    const send = (async () => {
+      const form = new FormData(); form.append('file', await gzipped(file), file.name);
+      return fetch('/api/upload', { method: 'POST', body: form });
+    })();
+    runJob(send, file.name);
     quickClientPreview(file); // instant, no backend/analysis needed -- see function below
   }
 
@@ -742,14 +1210,16 @@
 
   $('#btn-upload-top').addEventListener('click', () => $('#file-input').click());
   $('#btn-reset').addEventListener('click', () => {
+    currentJobId = null;
     $('#results').style.display = 'none';
-    $('#btn-reset').style.display = 'none';
-    $('#btn-upload-top').style.display = 'none';
+    $('#section-nav').classList.remove('show');
+    ['#btn-reset', '#btn-upload-top', '#btn-print', '#export-wrap'].forEach(id => $(id).style.display = 'none');
     $('#landing').style.display = 'block';
     loadDatasetRow();
   });
 
   function countUp(el, target, prefix='', suffix='', dp=0) {
+    if (INSTANT) { el.textContent = prefix + Number(target).toLocaleString('en-US',{maximumFractionDigits:dp}) + suffix; return; }
     const start = performance.now(); const dur = 1400;
     function step(now) {
       const p = Math.min(1, (now-start)/dur); const eased = 1 - Math.pow(1-p, 3);
@@ -844,7 +1314,7 @@
     ctx.strokeStyle = COLORS.hair; ctx.lineWidth = 1;
     for (let i=0;i<=3;i++){ const y = pad.t + (plotH*i/3); ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke(); }
     if (min < 0) {
-      const y0 = yScale(0); ctx.strokeStyle = 'rgba(236,233,228,0.22)';
+      const y0 = yScale(0); ctx.strokeStyle = COLORS.zero;
       ctx.beginPath(); ctx.moveTo(pad.l,y0); ctx.lineTo(w-pad.r,y0); ctx.stroke();
     }
 
@@ -870,6 +1340,7 @@
   }
 
   function animateChart(drawFn, duration=1300) {
+    if (INSTANT) { drawFn(1); return; }
     const start = performance.now();
     function step(now){ const p = Math.min(1,(now-start)/duration); drawFn(1-Math.pow(1-p,3)); if(p<1) requestAnimationFrame(step); }
     requestAnimationFrame(step);
@@ -933,7 +1404,7 @@
       const dateStr = new Date(nearest.x).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' });
       showTooltip(cx, cy, `<strong>${dateStr}</strong><br/>${fmtUsd(nearest.y)}<br/><span style="color:${nearest.color}">${nearest.label||''}</span>`);
     });
-    ctx.strokeStyle = 'rgba(236,233,228,0.18)';
+    ctx.strokeStyle = COLORS.zero;
     const y0 = yScale(0); ctx.beginPath(); ctx.moveTo(pad.l,y0); ctx.lineTo(w-pad.r,y0); ctx.stroke();
     const prog = opts.progress !== undefined ? opts.progress : 1;
     const visible = Math.max(1, Math.floor(points.length*prog));
@@ -947,10 +1418,10 @@
     ctx.fillText(fmtCompact(yMin), pad.l-10, pad.t+plotH);
   }
 
-  const CAUSE_COLORS = {
+  const causeColor = (label) => ({
     'Likely payday inflow': COLORS.sage, 'Weekend spending pattern': COLORS.gold,
     'Month-end outflow': COLORS.terracotta, 'Month-end inflow': COLORS.ink, 'Unclassified anomaly': COLORS.inkFaint,
-  };
+  })[label] || COLORS.inkFaint;
 
   function renderRaw(flows) {
     const n = flows.daily_deposits.length;
@@ -975,7 +1446,7 @@
     ], { progress: p, xLabels: flows.daily_timestamps.map(t => new Date(t).toLocaleDateString('en-US', {month:'short', day:'numeric'})) }));
 
     const spikes = flows.spikes;
-    const points = spikes.map(s => ({ x: new Date(s.ts).getTime(), y: s.net_flow, color: CAUSE_COLORS[s.label] || COLORS.inkFaint, label: s.label }));
+    const points = spikes.map(s => ({ x: new Date(s.ts).getTime(), y: s.net_flow, color: causeColor(s.label), label: s.label }));
     animateChart((p) => drawScatter($('#chart-spikes'), points, { progress: p }));
     const causeBars = $('#cause-bars'); causeBars.innerHTML = '';
     const causeEntries = Object.entries(flows.spike_cause_counts).sort((a,b)=>b[1]-a[1]);
@@ -983,7 +1454,7 @@
     causeEntries.forEach(([label,count]) => {
       const row = document.createElement('div'); row.className = 'cause-row';
       row.innerHTML = `<span class="cause-label">${label}</span>
-        <div class="cause-track"><div class="cause-fill" style="background:${CAUSE_COLORS[label]||COLORS.inkFaint}"></div></div>
+        <div class="cause-track"><div class="cause-fill" style="background:${causeColor(label)}"></div></div>
         <span class="cause-count num">${count}</span>`;
       causeBars.appendChild(row);
       requestAnimationFrame(() => row.querySelector('.cause-fill').style.width = (count/maxCause*100)+'%');
@@ -1142,16 +1613,558 @@
     countUp($('#regret-capital'), rg.n_capital_constrained_nights, '', ` / ${rg.n_nights}`);
   }
 
-  function renderStress(stress) {
-    const pillRow = $('#stress-pills'); pillRow.innerHTML = '';
-    Object.entries(stress).forEach(([name, r]) => {
-      const row = document.createElement('div'); row.className = 'status-item';
-      row.innerHTML = `<span class="name">${name.replace(/_/g,' ')}</span>
-        <span class="state ${r.survived ? 'ok' : 'fail'}">${r.survived ? 'SURVIVED' : 'FAILED — ' + (r.survival_timestamp||'')}</span>`;
-      pillRow.appendChild(row);
+
+  // ================= SHARED HELPERS FOR THE NEW SECTIONS =================
+  const DOW_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const fmtM = (v) => {
+    const a = Math.abs(v), sign = v < 0 ? '−' : '';
+    if (a >= 1e9) return sign + '$' + (a / 1e9).toFixed(2) + 'B';
+    if (a >= 1e6) return sign + '$' + (a / 1e6).toFixed(1) + 'M';
+    if (a >= 1e3) return sign + '$' + (a / 1e3).toFixed(0) + 'K';
+    return sign + '$' + a.toFixed(0);
+  };
+  const money = (v) => (v < 0 ? '−' : '') + fmtUsd(Math.abs(v));
+  const pct = (q, dp = 2) => (q * 100).toFixed(dp) + '%';
+  const fmtDay = (iso, opts) => new Date(iso.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-US', opts || { month: 'short', day: 'numeric', year: 'numeric' });
+  const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const policyLabel = (n) => n === 'ballast' ? 'Ballast' : n === 'oracle' ? 'Oracle (perfect foresight)'
+    : n === 'all_cash' ? 'All cash' : n === 'moving_avg_2sigma' ? 'Moving avg + 2σ'
+    : n.startsWith('static_') ? 'Fixed ' + n.slice(7) + ' buffer' : n.replace(/_/g, ' ');
+
+  // numpy.quantile(..., method="higher") on an ascending array -- the exact
+  // estimator the engine uses, so client-side buffers match the server's.
+  function quantileHigher(sorted, q) {
+    if (!sorted.length) return 0;
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * (sorted.length - 1) - 1e-9)));
+    return sorted[idx];
+  }
+  const breakEven = (feePct, ratePct, hours) => {
+    const cu = feePct / 100, co = ratePct / 100 * hours / 8760;
+    return { cu, co, q: cu / (cu + co) };
+  };
+
+  // ================= DATA QUALITY =================
+  function renderQuality(v) {
+    const ok = (b) => b ? '<span class="ok">✓</span> ' : '<span class="bad">✕</span> ';
+    const r = v.rates || {};
+    const cells = [
+      ['Hourly rows', ok(v.n_rows === v.n_expected) + `${v.n_rows.toLocaleString('en-US')} of ${v.n_expected.toLocaleString('en-US')}`],
+      ['Period', `${fmtDay(v.date_start, {month:'short', day:'numeric'})} – ${fmtDay(v.date_end)}`],
+      ['Missing hours', ok(v.n_missing_hours === 0) + v.n_missing_hours],
+      ['Duplicate hours', ok(v.n_duplicate_timestamps === 0) + v.n_duplicate_timestamps],
+      ['Empty values', ok(v.n_missing_values === 0) + v.n_missing_values],
+      ['Net flow = deposits − withdrawals', ok(v.max_net_flow_mismatch <= 0.011) + `to within $${v.max_net_flow_mismatch.toFixed(2)}`],
+      ['Sweep windows', ok(v.sweep_hours_ok) + `${v.n_sweep_windows} · all at 17:00`],
+      ['Repo maturities', ok(v.maturity_hours_ok) + `${v.n_maturities} · all at 08:00`],
+      ['Repo rate (mean)', `${(r.tier1_repo_rate_apy ?? 0).toFixed(2)}% APY`],
+      ['Early-break fee', `${(r.tier1_early_redemption_haircut_pct ?? 0).toFixed(2)}%`],
+      ['Bond / equity exit haircut', `${(r.tier2_bond_liquidation_haircut_pct ?? 0).toFixed(1)}% / ${(r.tier3_stock_liquidation_haircut_pct ?? 0).toFixed(1)}%`],
+      ['Overdraft rate', `${(r.emergency_overdraft_penalty_apr_pct ?? 0).toFixed(1)}% APR`],
+    ];
+    $('#quality-grid').innerHTML = cells.map(([l, val]) =>
+      `<div class="check-cell"><div class="label">${l}</div><div class="value">${val}</div></div>`).join('');
+    const notes = (v.warnings || []).concat(v.errors || []);
+    $('#quality-notes').innerHTML = notes.length
+      ? '<li style="list-style:none; margin-left:-40px; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem;">Validator flags (each resolved in the assumptions register)</li>'
+        + notes.map(n => `<li>${esc(n)}</li>`).join('')
+      : '';
+  }
+
+  // ================= METHOD =================
+  function renderMethod(s) {
+    const risk = s.risk, r = s.validation.rates || {};
+    const dow = risk.by_dow;
+    const mean = (names) => { const xs = names.filter(n => dow[n]).map(n => dow[n].mean); return xs.reduce((a, b) => a + b, 0) / (xs.length || 1); };
+    const we = mean(['Fri', 'Sat']), wd = mean(['Sun', 'Mon', 'Tue', 'Wed', 'Thu']);
+    const fee = risk.break_fee_mean, rate = risk.repo_rate_mean;
+    const be = breakEven(fee, rate, 15);
+    const qEff = Math.max(risk.q_star, risk.q_policy);
+    const bwd = quantileHigher(risk.M_weekday, qEff), bwe = quantileHigher(risk.M_weekend, qEff);
+    const steps = [
+      ['01 · Measure', 'Find each night’s worst moment',
+       'Not the overnight total: the deepest point cumulative withdrawals reach before the 08:00 unlock. That is what the buffer has to survive.',
+       `${risk.n_nights} nights measured<br/>median ${fmtM(risk.M_p50)} · worst ${fmtM(risk.M_max)}`],
+      ['02 · Split', 'Give weekends their own risk model',
+       'Friday and Saturday nights drain several times more than the rest, so each regime is sized from its own history. One cushion for every night would be wrong five nights a week.',
+       `Fri–Sat avg ${fmtM(we)}<br/>Sun–Thu avg ${fmtM(wd)} · ${(we / wd).toFixed(1)}×`],
+      ['03 · Price', 'Weigh an idle dollar against a broken lock',
+       'A dollar held back loses 15 hours of repo interest. A dollar short costs the early-break fee. Their ratio is the break-even coverage, q*.',
+       `q* = ${fee.toFixed(2)}% ÷ (${fee.toFixed(2)}% + ${(be.co * 100).toFixed(4)}%)<br/>= ${pct(be.q)}`],
+      ['04 · Hold', 'Hold that share of past drains',
+       'The buffer is the drain that q of comparable past nights stayed under, raised to the treasury’s coverage floor whenever the floor is stricter.',
+       `coverage ${pct(qEff)}${risk.q_policy > risk.q_star ? ' (floor binds)' : ''}<br/>${fmtM(bwd)} weeknight · ${fmtM(bwe)} weekend`],
+      ['05 · Sweep', 'Sweep the rest, backstop the tail',
+       'Everything above the buffer goes into overnight repo at 17:00. If a night still beats the buffer, payouts are funded cheapest-first.',
+       `repo break ${fee.toFixed(1)}% → bonds ${(r.tier2_bond_liquidation_haircut_pct ?? 0).toFixed(0)}% → equities ${(r.tier3_stock_liquidation_haircut_pct ?? 0).toFixed(0)}% → overdraft ${(r.emergency_overdraft_penalty_apr_pct ?? 0).toFixed(0)}% APR`],
+    ];
+    $('#method-steps').innerHTML = steps.map(([n, t, d, live]) =>
+      `<div class="step"><div class="n">${n}</div><div class="t">${t}</div><div class="d">${d}</div><div class="live">${live}</div></div>`).join('');
+  }
+
+  // ================= DECISION LOG =================
+  let nightIdx = null;
+  const nightClass = (d) => d.outcome === 'constrained' ? 'oc-constrained' : d.outcome === 'short' ? 'oc-short'
+    : d.basis !== 'regime_quantile' ? 'oc-warmup' : 'oc-covered';
+
+  function renderDecisions(s) {
+    const dec = s.decisions;
+    if (!dec.length) throw new Error('no complete nights in this file');
+    const dayNum = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
+    const d0 = dayNum(dec[0].date), firstDow = dec[0].dow;
+    let html = '', months = '', lastMonth = '';
+    const nCols = Math.floor((dayNum(dec[dec.length - 1].date) - d0 + firstDow) / 7) + 1;
+    dec.forEach((d, i) => {
+      const off = dayNum(d.date) - d0 + firstDow;
+      const col = Math.floor(off / 7) + 1, row = d.dow + 1;
+      const label = `${fmtDay(d.date, {weekday:'short', month:'short', day:'numeric'})} · ${d.outcome === 'covered' ? 'covered' : d.outcome === 'short' ? 'drain beat buffer' : 'capital-constrained'}`;
+      html += `<div class="cal-cell ${nightClass(d)}" data-i="${i}" title="${label}" style="grid-column:${col}; grid-row:${row};"></div>`;
+      const m = d.date.slice(0, 7);
+      if (m !== lastMonth) {
+        lastMonth = m;
+        months += `<span style="grid-column:${col};">${fmtDay(d.date, {month:'short'})}</span>`;
+      }
+    });
+    $('#cal').innerHTML = `<div class="cal-months" style="grid-template-columns: repeat(${nCols}, 15px);">${months}</div>
+      <div class="cal-body"><div class="cal-days"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span>Sun</span></div>
+      <div class="cal-grid">${html}</div></div>`;
+    $('#cal').querySelectorAll('.cal-cell').forEach(c => c.addEventListener('click', () => selectNight(+c.dataset.i)));
+
+    if (nightIdx === null || nightIdx >= dec.length) {
+      // Open on the biggest drain the buffer actually absorbed: the clearest
+      // illustration of the rule doing its job.
+      // Restricted to nights where most cash was swept, so the example shows
+      // the rule at full scale rather than on a nearly drained book.
+      let best = -1;
+      dec.forEach((d, i) => {
+        if (d.outcome === 'covered' && d.basis === 'regime_quantile' && d.swept > 0.8 * d.cash && (best < 0 || d.M > dec[best].M)) best = i;
+      });
+      nightIdx = best < 0 ? 0 : best;
+    }
+    selectNight(nightIdx);
+    renderCalibration(s.calibration, dec);
+  }
+
+  function selectNight(i) {
+    const dec = state.decisions; if (!dec) return;
+    nightIdx = Math.max(0, Math.min(dec.length - 1, i));
+    const d = dec[nightIdx];
+    $('#cal').querySelectorAll('.cal-cell.sel').forEach(c => c.classList.remove('sel'));
+    const cell = $('#cal').querySelector(`.cal-cell[data-i="${nightIdx}"]`); if (cell) cell.classList.add('sel');
+
+    $('#nc-date').textContent = fmtDay(d.date, { weekday: 'long', month: 'long', day: 'numeric' });
+    const tag = $('#nc-tag');
+    tag.className = 'night-tag ' + d.outcome;
+    tag.textContent = d.outcome === 'covered' ? 'Covered' : d.outcome === 'short' ? 'Buffer beaten' : 'Capital-constrained';
+
+    const cash = Math.max(0, d.cash), held = Math.min(d.buffer, cash);
+    const heldFrac = cash > 0 ? held / cash : 0;
+    $('#nc-bar-held').style.width = (cash > 0 ? Math.max(heldFrac * 100, 0.8) : 0) + '%';
+    $('#nc-bar-swept').style.width = (cash > 0 ? (1 - heldFrac) * 100 : 0) + '%';
+    $('#nc-held-lbl').innerHTML = `<span style="color:var(--gold)">■</span> Held back ${fmtM(held)}${cash > 0 ? ` (${(heldFrac * 100).toFixed(1)}%)` : ''}`;
+    $('#nc-swept-lbl').innerHTML = `Swept to repo ${fmtM(d.swept)} <span style="color:var(--sage)">■</span>`;
+
+    const margin = d.buffer - d.M;
+    const stats = [
+      ['Free cash at 17:00', fmtUsd(cash)],
+      ['Buffer held', fmtUsd(d.buffer)],
+      ['Swept into repo', fmtUsd(d.swept)],
+      ['Night’s worst drain', fmtUsd(d.M)],
+      d.outcome === 'covered' ? ['Spare at the worst hour', fmtUsd(margin)]
+        : d.outcome === 'short' ? ['Repo broken early', fmtUsd(d.repo_broken)]
+        : ['Overdraft used', fmtUsd(d.overdraft_used)],
+      ['Repo interest earned', '≈ ' + fmtUsd(d.interest)],
+    ];
+    $('#nc-stats').innerHTML = stats.map(([l, v]) => `<div><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+    $('#nc-path-mark').style.background = d.outcome === 'covered' ? COLORS.sage : d.outcome === 'short' ? COLORS.terracotta : COLORS.ink;
+    $('#nc-why').innerHTML = whyText(d);
+    drawNight($('#chart-night'), d);
+  }
+
+  function whyText(d) {
+    const day = DOW_NAMES[d.dow];
+    const regime = d.weekend ? 'weekend (Fri–Sat)' : 'weeknight (Sun–Thu)';
+    const peak = d.path_k.length ? d.path_k.indexOf(Math.max(...d.path_k)) : 0;
+    const peakHour = String((17 + peak) % 24).padStart(2, '0') + ':00';
+    const p = [];
+    if (d.basis === 'cold_start') {
+      p.push(`This was the very first decision, with no completed nights to learn from, so Ballast held a small fixed cold-start cushion of <strong>${fmtM(d.buffer)}</strong>.`);
+    } else {
+      const be = breakEven(d.break_fee, d.repo_rate, 15);
+      p.push(`${day} night falls in the <strong>${regime}</strong> regime. Ballast looked only at the <strong>${d.n_samples}</strong> most recent nights of that kind${d.basis === 'pooled_fallback' ? ' (too few yet, so it used the pooled 95th percentile of all recent nights)' : ''}.`);
+      p.push(`Breaking repo early costs <strong>${d.break_fee.toFixed(2)}%</strong>. Holding a dollar idle for 15 hours forgoes ${d.repo_rate.toFixed(2)}% × 15/8,760 = ${(be.co * 100).toFixed(4)}%. So the break-even coverage is q* = <strong>${pct(be.q)}</strong>${d.q_eff > be.q + 1e-6 ? `, and the stricter treasury floor of <strong>${pct(d.q_eff)}</strong> applies` : ''}.`);
+      if (d.basis === 'regime_quantile') p.push(`The ${pct(d.q_eff, 1)} level of those nights’ drains was <strong>${fmtM(d.buffer)}</strong>, so that was held back. The other <strong>${fmtM(d.swept)}</strong> went into overnight repo at ${d.repo_rate.toFixed(2)}%.`);
+    }
+    if (d.outcome === 'covered') {
+      p.push(`<strong>Result:</strong> the drain peaked at ${fmtM(d.M)} around ${peakHour}. The buffer covered it with <strong>${fmtM(d.buffer - d.M)}</strong> to spare, and the swept cash earned ≈${fmtM(d.interest)}.`);
+    } else if (d.outcome === 'short') {
+      p.push(`<strong>Result:</strong> the drain reached ${fmtM(d.M)}, ${fmtM(d.M - d.buffer)} beyond the buffer. The waterfall broke ${fmtM(d.repo_broken)} of repo early, paying ${fmtUsd(d.fees)} in fees, and every payout was made on time.`);
+    } else {
+      p.push(`<strong>Result:</strong> tonight’s drain (${fmtM(d.M)}) was larger than all the free cash the book had (${fmtM(Math.max(0, d.cash))})${d.in_overdraft ? '. The book was already on its overdraft line at 17:00' : ''}. No buffer can cover that: it is a capital shortfall, not a sizing error. The waterfall funded the gap and every payout was made.`);
+    }
+    return `<div class="why-title">Why this call</div>` + p.map(x => `<p>${x}</p>`).join('');
+  }
+
+  function drawNight(canvas, d) {
+    const { ctx, w, h } = setupCanvas(canvas);
+    const pad = { l: 56, r: 16, t: 16, b: 26 };
+    const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+    ctx.clearRect(0, 0, w, h);
+    const path = d.path_k.map(v => v * 1000);
+    const showCash = d.outcome === 'constrained' && d.cash > 0;
+    const max = Math.max(...path, d.buffer, showCash ? d.cash : 0) * 1.15 || 1;
+    const min = Math.min(0, ...path);
+    const n = path.length;
+    const x = (i) => pad.l + (n > 1 ? i / (n - 1) : 0) * plotW;
+    const y = (v) => pad.t + plotH - ((v - min) / (max - min)) * plotH;
+    ctx.strokeStyle = COLORS.hair; ctx.lineWidth = 1;
+    for (let i = 0; i <= 3; i++) { const yy = pad.t + plotH * i / 3; ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke(); }
+    if (min < 0) { ctx.strokeStyle = COLORS.zero; ctx.beginPath(); ctx.moveTo(pad.l, y(0)); ctx.lineTo(w - pad.r, y(0)); ctx.stroke(); }
+    ctx.fillStyle = COLORS.inkFaint; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right';
+    for (let i = 0; i <= 3; i++) { const v = max - (max - min) * i / 3; ctx.fillText(fmtCompact(v), pad.l - 10, pad.t + plotH * i / 3 + 3); }
+    ctx.textAlign = 'center';
+    for (let i = 0; i < n; i += 2) ctx.fillText(String((17 + i) % 24).padStart(2, '0') + ':00', x(i), h - 6);
+
+    const lineColor = d.outcome === 'covered' ? COLORS.sage : d.outcome === 'short' ? COLORS.terracotta : COLORS.ink;
+    ctx.beginPath(); path.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+    ctx.lineTo(x(n - 1), y(Math.max(0, min))); ctx.lineTo(x(0), y(Math.max(0, min))); ctx.closePath();
+    ctx.fillStyle = lineColor + '22'; ctx.fill();
+    ctx.beginPath(); path.forEach((v, i) => i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v)));
+    ctx.strokeStyle = lineColor; ctx.lineWidth = 1.8; ctx.stroke();
+
+    const hline = (v, color, label, dash) => {
+      ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(pad.l, y(v)); ctx.lineTo(w - pad.r, y(v)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = color; ctx.textAlign = 'right'; ctx.font = '10px ui-monospace, monospace';
+      ctx.fillText(label, w - pad.r, y(v) - 5);
+    };
+    hline(d.buffer, COLORS.gold, 'buffer ' + fmtM(d.buffer), [5, 4]);
+    if (showCash) hline(d.cash, COLORS.ink, 'all free cash ' + fmtM(d.cash), [2, 3]);
+    const pk = path.indexOf(Math.max(...path));
+    ctx.beginPath(); ctx.arc(x(pk), y(path[pk]), 3.5, 0, Math.PI * 2); ctx.fillStyle = lineColor; ctx.fill();
+
+    canvas._layout = { pad, plotW, n, path, d };
+    attachHover(canvas, (mx, my, cx, cy) => {
+      const L = canvas._layout;
+      if (mx < L.pad.l || mx > L.pad.l + L.plotW) { hideTooltip(); return; }
+      const i = Math.round((mx - L.pad.l) / L.plotW * (L.n - 1));
+      if (i < 0 || i >= L.n) { hideTooltip(); return; }
+      const hr = String((17 + i) % 24).padStart(2, '0') + ':00';
+      showTooltip(cx, cy, `<strong>by ${hr}</strong><br/>cumulative outflow ${fmtUsd(L.path[i])}<br/>buffer ${fmtUsd(L.d.buffer)}`);
     });
   }
 
+  function renderCalibration(c, dec) {
+    if (!c || !c.all || !c.all.n) { $('#calib').innerHTML = ''; return; }
+    const misses = c.all.n - c.all.covered;
+    const fee = dec.find(d => d.basis === 'regime_quantile')?.break_fee ?? 0.5;
+    $('#calib').innerHTML = `
+      <div><div class="big">${pct(c.all.rate, 1)}<small>of nights covered</small></div></div>
+      <div class="why" style="border-left-color:var(--hairline-strong);">
+        <p><strong>The coverage promise, checked out of sample.</strong> The buffer targets at least ${pct(c.target, 1)} of nights.
+        It actually covered <strong>${c.all.covered} of ${c.all.n}</strong> nights on which the book had the cash to post it
+        (weeknights ${pct(c.weekday.rate ?? 0, 1)}, weekends ${pct(c.weekend.rate ?? 0, 1)}). Each of the ${misses} misses was paid
+        by breaking repo early at the ${fee.toFixed(1)}% fee. No payout was missed.</p>
+        <p>A ${pct(c.target, 1)} quantile estimated from about a hundred past nights is close to their maximum. When the book’s
+        behaviour drifts, that shows up as misses, which is the <em>forecast error</em> share of the attribution further down.
+        Excluded: ${c.n_constrained} capital-constrained nights, where no buffer could cover the drain, and ${c.n_warmup} warm-up nights.</p>
+      </div>`;
+  }
+
+  $('#nc-prev').addEventListener('click', () => selectNight((nightIdx ?? 0) - 1));
+  $('#nc-next').addEventListener('click', () => selectNight((nightIdx ?? 0) + 1));
+  $('#nc-worst').addEventListener('click', () => {
+    const dec = state.decisions; if (!dec) return;
+    selectNight(dec.reduce((b, d, i) => d.M > dec[b].M ? i : b, 0));
+  });
+  $('#nc-miss').addEventListener('click', () => {
+    const dec = state.decisions; if (!dec) return;
+    for (let k = 1; k <= dec.length; k++) {
+      const i = ((nightIdx ?? 0) + k) % dec.length;
+      if (dec[i].outcome === 'short') { selectNight(i); return; }
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!state.decisions || ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const r = $('#decision-section').getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) return;
+    if (e.key === 'ArrowLeft') { selectNight(nightIdx - 1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { selectNight(nightIdx + 1); e.preventDefault(); }
+  });
+
+  // ================= RESERVE CALCULATOR =================
+  let calcInitFor = null;
+  function renderCalculator(risk) {
+    if (calcInitFor !== risk) {
+      calcInitFor = risk;
+      $('#c-rate').value = risk.repo_rate_mean.toFixed(3);
+      $('#c-fee').value = risk.break_fee_mean.toFixed(2);
+      $('#c-hours').value = 15;
+      $('#c-floor').value = (risk.q_policy * 100).toFixed(2);
+      $('#c-cash').value = 1000;
+      ['#c-rate', '#c-fee', '#c-hours', '#c-floor', '#c-cash'].forEach(id => $(id).oninput = () => updateCalculator(risk));
+    }
+    updateCalculator(risk);
+  }
+
+  function updateCalculator(risk) {
+    const num = (id, dflt) => { const v = parseFloat($(id).value); return isFinite(v) ? v : dflt; };
+    const rate = Math.max(0, num('#c-rate', risk.repo_rate_mean)), fee = Math.max(0, num('#c-fee', risk.break_fee_mean));
+    const hours = Math.min(72, Math.max(1, num('#c-hours', 15)));
+    const floor = Math.min(0.9999, Math.max(0, num('#c-floor', 99.5) / 100));
+    const cash = Math.max(0, num('#c-cash', 1000)) * 1e6;
+    const be = breakEven(fee, rate, hours);
+    const q = Math.max(be.q, floor);
+    const regimes = [
+      { name: 'Weeknight (Sun–Thu)', M: risk.M_weekday, w: 5 },
+      { name: 'Weekend (Fri–Sat)', M: risk.M_weekend, w: 2 },
+    ].map(r => {
+      const buf = quantileHigher(r.M, q);
+      return Object.assign(r, { buf, missed: r.M.filter(m => m > buf).length });
+    });
+    const annual = (qq) => {
+      const avg = regimes.reduce((a, r) => a + quantileHigher(r.M, qq) * r.w, 0) / 7;
+      return avg * rate / 100 * hours * 365 / 8760;
+    };
+    const cost = annual(q), costAtQStar = annual(be.q);
+
+    const row = (sym, expr, res, hi) => `<span>${sym}</span><span class="muted">${expr}</span><span class="${hi ? 'res' : ''}">${res}</span>`;
+    $('#c-formula').innerHTML = row('C<sub>u</sub>', 'cost of coming up short = early-break fee', fee.toFixed(3) + '%')
+      + row('C<sub>o</sub>', `cost of an idle dollar = ${rate.toFixed(3)}% × ${hours}h ÷ 8,760h`, (be.co * 100).toFixed(5) + '%')
+      + row('q*', 'break-even coverage = C<sub>u</sub> ÷ (C<sub>u</sub> + C<sub>o</sub>)', pct(be.q, 3), true)
+      + row('q', `coverage used = max(q*, floor ${pct(floor)})`, pct(q, 3), true);
+    $('#c-binding').innerHTML = floor > be.q
+      ? `The <strong>treasury floor (${pct(floor)})</strong> is stricter than the break-even (${pct(be.q)}), so the floor sets the buffer. On cost alone Ballast would hold less.`
+      : `The <strong>economics (q* = ${pct(be.q)})</strong> ask for more coverage than the floor, so q* sets the buffer.`;
+    $('#c-table').innerHTML = `<thead><tr><th>Regime</th><th>Coverage</th><th>Buffer to hold</th><th>Nights it would have missed</th><th>Sweep from ${fmtM(cash)}</th></tr></thead><tbody>` +
+      regimes.map(r => `<tr><td>${r.name}</td><td>${pct(q)}</td><td class="highlight">${fmtUsd(r.buf)}</td>
+        <td>${r.missed} of ${r.M.length}</td><td>${fmtUsd(Math.max(0, cash - r.buf))}</td></tr>`).join('') + '</tbody>';
+    $('#c-total').innerHTML = `
+      <div><div class="label">Interest given up to hold it</div><div class="value">${fmtUsd(cost)}/yr</div></div>
+      <div><div class="label">${floor > be.q ? 'Of which the floor adds over q*' : 'Floor adds nothing at these rates'}</div><div class="value plain">+${fmtUsd(Math.max(0, cost - costAtQStar))}/yr</div></div>`;
+  }
+
+  // ================= BACKTEST: NET INCOME + MONTHLY =================
+  function renderIncome(s) {
+    const ni = s.net_income_daily, sb = s.scoreboard;
+    const names = Object.keys(ni.series);
+    const colorOf = (n) => n === 'ballast' ? COLORS.gold : n === 'oracle' ? COLORS.sage : n === 'all_cash' ? COLORS.terracotta
+      : n.startsWith('static_') ? COLORS.ink : COLORS.inkFaint;
+    const order = names.filter(n => n !== 'ballast').concat(names.includes('ballast') ? ['ballast'] : []);
+    const series = order.map(n => ({ data: ni.series[n], color: colorOf(n), fill: false, width: n === 'ballast' ? 2.2 : 1.2, name: policyLabel(n) }));
+    animateChart((p) => drawAreaLine($('#chart-income'), series, {
+      progress: p, xLabels: ni.dates.map(t => fmtDay(t, {month:'short', day:'numeric'})) }));
+    $('#income-legend').innerHTML = names.map(n =>
+      `<span><span class="legend-mark" style="background:${colorOf(n)}; height:${n === 'ballast' ? 2.5 : 1.5}px"></span>${policyLabel(n)}</span>`).join('');
+
+    const fin = (n) => ni.series[n][ni.series[n].length - 1];
+    const others = names.filter(n => n !== 'ballast' && n !== 'oracle');
+    const bestOther = others.reduce((a, b) => fin(a) > fin(b) ? a : b, others[0]);
+    const peakIdx = ni.series.ballast.indexOf(Math.max(...ni.series.ballast));
+    let txt = `By the end of the period Ballast had netted <strong>${money(fin('ballast'))}</strong>. `;
+    if (names.includes('all_cash')) txt += `Leaving everything in cash netted ${money(fin('all_cash'))}, the price of idle money. `;
+    if (bestOther) txt += fin('ballast') >= fin(bestOther)
+      ? `The best alternative (${policyLabel(bestOther)}) finished ${fmtUsd(fin('ballast') - fin(bestOther))} behind. `
+      : `${policyLabel(bestOther)} finished ${fmtUsd(fin(bestOther) - fin('ballast'))} ahead on this file. `;
+    if (names.includes('oracle')) txt += `Perfect foresight would have added only ${fmtUsd(fin('oracle') - fin('ballast'))} more.`;
+    if (peakIdx < ni.series.ballast.length - 20) txt += ` Every line turns down after ${fmtDay(ni.dates[peakIdx], {month:'long', day:'numeric'})}: the book’s cash runs out and overdraft interest begins, for every strategy alike.`;
+    $('#income-takeaway').innerHTML = txt;
+
+    const m = s.monthly, staticName = Object.keys(sb).find(n => n.startsWith('static_'));
+    const tot = (k) => m.reduce((a, r) => a + r[k], 0);
+    $('#monthly-sub').innerHTML = `Ballast against the ${staticName ? policyLabel(staticName) : 'best fixed buffer'}, which was chosen with hindsight as the best fixed amount for this exact period. Ballast starts each file with no history at all.`;
+    const cell = (v) => `<td style="color:${v >= 0 ? 'var(--sage)' : 'var(--terracotta)'}">${v >= 0 ? '+' : '−'}${fmtUsd(Math.abs(v))}</td>`;
+    $('#monthly-table').innerHTML = `<thead><tr><th>Month</th><th>Repo interest</th><th>Fees &amp; penalties</th><th>Net</th><th>vs fixed buffer</th><th>Nights swept</th><th>Buffer beaten</th><th>Avg swept / night</th></tr></thead><tbody>` +
+      m.map(r => `<tr><td>${fmtDay(r.month + '-01', {month:'short', year:'numeric'})}</td><td>${fmtUsd(r.interest)}</td><td>${fmtUsd(r.fees)}</td>
+        <td class="highlight">${money(r.net)}</td>${cell(r.vs_static)}<td>${r.nights_swept} / ${r.nights}</td><td>${r.nights_short}</td><td>${fmtM(r.avg_swept)}</td></tr>`).join('') +
+      `<tr><td><strong>Total</strong></td><td>${fmtUsd(tot('interest'))}</td><td>${fmtUsd(tot('fees'))}</td><td class="highlight">${money(tot('net'))}</td>${cell(tot('vs_static'))}<td>${tot('nights_swept')} / ${tot('nights')}</td><td>${tot('nights_short')}</td><td></td></tr></tbody>`;
+  }
+
+  // ================= STRESS LAB =================
+  const LAB_COPY = {
+    withdrawal_surge: { mult: 'Multiplier (×)', dflt: 3, dur: true },
+    deposit_freeze: { mult: null, dflt: 1, dur: true },
+    bank_run: { mult: 'Deposits pulled day 1 (%)', dflt: 25, dur: false },
+    payday_surge: { mult: 'Multiplier (×)', dflt: 2, dur: true },
+  };
+  function syncLabForm() {
+    const c = LAB_COPY[$('#lab-scn').value];
+    $('#lab-mult').disabled = !c.mult; $('#lab-mult-lbl').textContent = c.mult || 'Multiplier (n/a)';
+    $('#lab-mult').value = c.dflt; $('#lab-dur').disabled = !c.dur;
+  }
+  $('#lab-scn').addEventListener('change', syncLabForm);
+
+  $('#lab-run').addEventListener('click', async () => {
+    if (!currentJobId) return;
+    const btn = $('#lab-run'); btn.disabled = true;
+    $('#lab-result').innerHTML = '<div class="spinner-note pending-note">Replaying the year with your shock, hour by hour…</div>';
+    try {
+      const resp = await fetch(`/api/stress/${currentJobId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario: $('#lab-scn').value, start: $('#lab-start').value,
+          multiplier: parseFloat($('#lab-mult').value) || 1, duration_hours: parseInt($('#lab-dur').value, 10) || 48 }),
+      });
+      const body = await resp.json();
+      if (!resp.ok) throw new Error(body.detail || resp.statusText);
+      labLast = body;
+      renderLabResult(body);
+    } catch (e) {
+      $('#lab-result').innerHTML = `<div class="lab-verdict fail" style="font-size:0.9rem;">${esc(e.message || e)}</div>`;
+    } finally { btn.disabled = false; }
+  });
+
+  function renderLabResult(r) {
+    const when = r.failure_ts ? new Date(r.failure_ts.replace(' ', 'T')).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' }) : '';
+    const windowHours = r.baseline.liquid.length - 24;
+    const lost = r.baseline.liquid[r.baseline.liquid.length - 1] - r.shocked.liquid[r.shocked.liquid.length - 1];
+    const low = Math.min(...r.shocked.liquid);
+    const verdict = r.survived
+      ? ['ok', `Survived. Every payout was funded through the shock and for the rest of the period.`]
+      : r.hours_to_failure <= windowHours
+        ? ['fail', `Payouts fail during the shock itself: first unfunded payout on ${when}, ${r.hours_to_failure} hours in.`]
+        : ['fail', `Every payout during the shock was funded. But the shock permanently removed ${fmtM(lost)} of liquidity, so the book’s underlying decline exhausts the emergency line on ${when}, ${(r.hours_to_failure / 24).toFixed(0)} days later. Without the shock the book survives the period.`];
+    $('#lab-result').innerHTML = `
+      <div class="lab-verdict ${verdict[0]}">${verdict[1]}</div>
+      <div class="lab-stats">
+        <div><div class="label">Scenario</div><div class="value" style="font-family:var(--sans); font-size:0.86rem;">${esc(r.label)}</div></div>
+        <div><div class="label">Liquidity lost to the shock</div><div class="value">${money(lost)}</div></div>
+        <div><div class="label">Lowest liquidity in window</div><div class="value">${money(low)}</div></div>
+        <div><div class="label">Extra fees in window</div><div class="value">${fmtUsd(Math.max(0, r.extra_fees_in_window))}</div></div>
+        <div><div class="label">Emergency line</div><div class="value">${fmtUsd(r.cap)}</div></div>
+      </div>
+      <div class="panel"><canvas id="chart-lab" height="220"></canvas>
+        <div class="legend-row"><span><span class="legend-mark" style="background:var(--ink-dim)"></span>Liquidity without the shock</span>
+        <span><span class="legend-mark" style="background:var(--terracotta)"></span>Liquidity with the shock</span></div></div>`;
+    drawLabChart(r);
+  }
+  function drawLabChart(r) {
+    const c = document.getElementById('chart-lab'); if (!c) return;
+    const n = Math.min(r.baseline.liquid.length, r.shocked.liquid.length);
+    const pad = (arr) => arr.concat(Array(Math.max(0, r.baseline.liquid.length - arr.length)).fill(arr[arr.length - 1]));
+    drawAreaLine(c, [
+      { data: r.baseline.liquid, color: COLORS.ink, fill: false, width: 1.2, name: 'No shock' },
+      { data: n < r.baseline.liquid.length ? pad(r.shocked.liquid) : r.shocked.liquid, color: COLORS.terracotta, fill: true, width: 1.8, name: 'Shocked' },
+    ], { xLabels: r.baseline.ts.map(t => new Date(t.replace(' ', 'T')).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' })) });
+  }
+
+  // ================= STRESS (preset results + lab setup) =================
+  function renderStress(s) {
+    const pillRow = $('#stress-pills'); pillRow.innerHTML = '';
+    const nice = { svb_run: 'SVB-style bank run', holiday_x3: 'Holiday withdrawals ×3', payday_x2: 'Payday deposits ×2', bond_shock_200bp: 'Bond yields +200bp' };
+    Object.entries(s.stress).forEach(([name, r]) => {
+      const row = document.createElement('div'); row.className = 'status-item';
+      const when = r.survival_timestamp ? new Date(r.survival_timestamp.replace(' ', 'T')).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' }) : '';
+      row.innerHTML = `<span class="name">${nice[name] || name.replace(/_/g, ' ')}</span>
+        <span class="state ${r.survived ? 'ok' : 'fail'}">${r.survived ? 'SURVIVED' : 'FIRST MISSED PAYOUT — ' + when}</span>`;
+      pillRow.appendChild(row);
+    });
+    if (s.stress_start && !$('#lab-start').value) {
+      $('#lab-start').value = s.stress_start.slice(0, 10);
+      if (s.validation) { $('#lab-start').min = s.validation.date_start.slice(0, 10); $('#lab-start').max = s.validation.date_end.slice(0, 10); }
+      syncLabForm();
+    }
+    if (labLast) renderLabResult(labLast);
+  }
+
+  // ================= INTEGRITY + ASSUMPTIONS =================
+  function renderIntegrity(checks) {
+    $('#integrity-list').innerHTML = checks.map(c => `<div class="audit-row">
+      <div class="st ${c.passed ? 'ok' : 'fail'}">${c.passed ? '✓ PASS' : '✕ FAIL'}</div>
+      <div><div class="nm">${esc(c.name)}</div><div class="dt">${esc(c.detail)}</div></div></div>`).join('');
+  }
+
+  const ASSUMPTIONS = [
+    ['brief', 'Repo locks from 17:00 to 08:00 (15 hours).', 'Swept cash is unreachable overnight except by breaking the repo early, which costs the early-break fee.'],
+    ['data', 'Early-break fee, haircuts, repo rate and overdraft rate are read from the file hour by hour.', 'The break fee column holds 0.5, read as 0.5 percent. The validator flags it because it is below 1, but 50% would make every early break cost half the amount, which no repo agreement does.'],
+    ['design', 'The buffer covers the night’s worst point, not its total.', 'Cash runs out at the deepest point of the night, even if later deposits bring the total back up. Sizing to the overnight total under-covers the nights that matter.'],
+    ['data', 'Friday and Saturday nights form their own regime.', 'Found in the data: these nights drain several times more than the rest. The engine recomputes the split from each uploaded file.'],
+    ['design', 'Treasury coverage floor of 99.5%, applied when stricter than q*.', 'A governance minimum. The reserve calculator and risk slider show what any other floor would cost.'],
+    ['design', 'Decisions use only data up to 16:59 that day.', 'No look-ahead. The audit section re-proves it on every run by deleting the future from the file and re-running.'],
+    ['design', 'Funding waterfall: repo break, then bonds, then equities, then overdraft.', 'Ordered by policy, cheapest planned source first. The overdraft is a last resort, never a funding plan.'],
+    ['design', 'The bond and equity sleeves are switched off.', 'We tested bond allocations of 5–50%. Each one lowered net profit: rate moves this year cost more in mark-to-market losses than bonds earned over repo. A 15% exit haircut rules equities out for overnight cash.'],
+    ['assumed', 'Opening capital: $2B on the reference file; 40× the worst observed night on uploads.', 'The file has no opening balance. Its flows fall $2.53B over the year, so the book is under real pressure by year end and every strategy, even perfect foresight, ends in overdraft.'],
+    ['data', 'Net flow differs from deposits − withdrawals by at most one cent on some rows.', 'Rounding in the source file. The engine uses the file’s net flow as given; a cent cannot move any result.'],
+    ['assumed', 'Repo interest accrues pro rata over the 15 locked hours.', 'The brief does not fix the accrual convention. Pro rata is the conservative reading.'],
+    ['design', 'The fixed-buffer baseline is tuned with hindsight.', 'Its single buffer is grid-searched on the very year it is scored on, an advantage Ballast never gets. Beating it is the hardest test available.'],
+    ['design', 'The oracle is a benchmark, not a strategy.', 'It knows each night’s drain in advance and shows the lowest cost any policy could reach. It cannot be deployed.'],
+    ['assumed', 'Stress tests draw on an emergency credit line of half the opening capital.', 'Large enough that the unshocked year survives, so any failure is caused by the shock itself.'],
+  ];
+  $('#assumptions-table').innerHTML = '<tbody>' + ASSUMPTIONS.map(([tag, what, why]) =>
+    `<tr><td><span class="tag ${tag}">${tag.toUpperCase()}</span></td><td class="what">${what}</td><td class="reg-why">${why}</td></tr>`).join('') + '</tbody>';
+
+  // ================= NAV: highlight the section in view =================
+  const navLinks = Array.from(document.querySelectorAll('#section-nav a'));
+  const navTargets = navLinks.map(a => document.querySelector(a.getAttribute('href')));
+  window.addEventListener('scroll', () => {
+    let active = 0;
+    navTargets.forEach((t, i) => { if (t && t.getBoundingClientRect().top < 120) active = i; });
+    navLinks.forEach((a, i) => a.classList.toggle('active', i === active));
+  }, { passive: true });
+
+  // ================= EXPORT =================
+  function download(name, text, type) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  const csv = (rows) => rows.map(r => r.map(v => {
+    const t = v === null || v === undefined ? '' : String(v);
+    return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }).join(',')).join('\n') + '\n';
+  const slug = () => (datasetLabel || 'ballast').replace(/\.csv$/i, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+  const EXPORTS = {
+    decisions: () => {
+      const cols = ['date', 'dow', 'weekend', 'cash', 'buffer', 'swept', 'M', 'outcome', 'in_overdraft', 'q_star', 'q_eff',
+        'n_samples', 'basis', 'repo_rate', 'break_fee', 'interest', 'repo_broken', 'overdraft_used', 'fees'];
+      const head = ['night_date', 'day_of_week', 'weekend_regime', 'free_cash_17h_usd', 'buffer_usd', 'swept_usd',
+        'worst_drain_usd', 'outcome', 'in_overdraft_at_17h', 'q_star', 'q_used', 'history_nights', 'basis',
+        'repo_rate_pct', 'break_fee_pct', 'repo_interest_usd', 'repo_broken_early_usd', 'overdraft_used_usd', 'fees_usd'];
+      download(`${slug()}-nightly-decisions.csv`, csv([head].concat(state.decisions.map(d =>
+        cols.map(c => c === 'dow' ? DOW_NAMES[d.dow] : d[c])))), 'text/csv');
+    },
+    scoreboard: () => {
+      const sb = state.scoreboard, names = Object.keys(sb);
+      const keys = Object.keys(sb[names[0]]).filter(k => typeof sb[names[0]][k] === 'number');
+      download(`${slug()}-strategy-scoreboard.csv`, csv([['metric'].concat(names)].concat(keys.map(k => [k].concat(names.map(n => sb[n][k]))))), 'text/csv');
+    },
+    monthly: () => {
+      const m = state.monthly, cols = Object.keys(m[0]);
+      download(`${slug()}-monthly-pnl.csv`, csv([cols].concat(m.map(r => cols.map(c => r[c])))), 'text/csv');
+    },
+    json: () => download(`${slug()}-ballast-results.json`, JSON.stringify(state, null, 2), 'application/json'),
+  };
+  $('#btn-export').addEventListener('click', (e) => { e.stopPropagation(); $('#export-menu').classList.toggle('open'); });
+  document.addEventListener('click', () => $('#export-menu').classList.remove('open'));
+  $('#export-menu').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    try { EXPORTS[b.dataset.export](); } catch (e) { console.error(e); }
+    $('#export-menu').classList.remove('open');
+  }));
+
+  // ================= PRINT =================
+  function printMeta() {
+    const v = state.validation;
+    const period = v ? `${fmtDay(v.date_start)} – ${fmtDay(v.date_end)}` : '';
+    return `${datasetLabel} · ${period} · generated ${new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} · ballast.jkartik.in`;
+  }
+  // Print in the light palette, with every chart redrawn at its final frame
+  // synchronously (animations would not have run by the time the page prints).
+  let themeBeforePrint = null;
+  function preparePrint() {
+    if (themeBeforePrint !== null) return;
+    themeBeforePrint = currentTheme;
+    $('#print-meta').textContent = printMeta();
+    applyTheme('light');
+  }
+  function restoreAfterPrint() {
+    if (themeBeforePrint === null) return;
+    const t = themeBeforePrint; themeBeforePrint = null;
+    applyTheme(t);
+  }
+  window.addEventListener('beforeprint', preparePrint);
+  window.addEventListener('afterprint', restoreAfterPrint);
+  $('#btn-print').addEventListener('click', () => { preparePrint(); setTimeout(() => { window.print(); restoreAfterPrint(); }, 50); });
+  window.__ballastPreparePrint = preparePrint;  // used by the automated PDF check
 })();
 </script>
 </body>

@@ -30,14 +30,22 @@ from engine.risk.newsvendor import empirical_quantile_buffer, critical_fractile 
 from engine.stress.scenarios import SCENARIOS  # noqa: E402
 from engine.stress.survival import survival_horizon  # noqa: E402
 
+# Bump whenever the shape of the pipeline output changes, so results cached
+# on disk by an older build are recomputed instead of served without the new
+# fields (api/main.py keys its precompute cache on this).
+PIPELINE_VERSION = 2
+
 STAGES = [
     ("validate", "Validating uploaded data"),
     ("flows", "Analyzing deposit and withdrawal patterns"),
     ("risk", "Computing overnight risk distribution"),
     ("sim", "Running policy simulations"),
     ("stress", "Testing stress scenarios"),
+    ("audit", "Running integrity checks"),
     ("done", "Finalizing report"),
 ]
+
+OVERNIGHT_HOURS = 15
 
 
 def _set(job: dict, stage: str, percent: float, **extra):
@@ -73,6 +81,17 @@ def run_pipeline(csv_path: Path, job: dict):
         job["validation"] = {
             "n_rows": report.n_rows, "is_continuous_hourly": report.is_continuous_hourly,
             "warnings": report.warnings, "errors": report.errors,
+            "n_expected": report.n_expected, "n_duplicate_timestamps": report.n_duplicate_timestamps,
+            "n_missing_hours": report.n_missing_hours,
+            "net_flow_ok": bool(report.net_flow_matches_deposits_minus_withdrawals),
+            "max_net_flow_mismatch": report.max_net_flow_mismatch,
+            "n_missing_values": int(df.isna().sum().sum()),
+            "date_start": str(df["timestamp"].iloc[0]), "date_end": str(df["timestamp"].iloc[-1]),
+            "n_sweep_windows": int(df["repo_sweep_window_open"].astype(bool).sum()),
+            "n_maturities": int(df["repo_sweep_mature"].astype(bool).sum()),
+            "sweep_hours_ok": bool((df.loc[df["repo_sweep_window_open"].astype(bool), "timestamp"].dt.hour == 17).all()),
+            "maturity_hours_ok": bool((df.loc[df["repo_sweep_mature"].astype(bool), "timestamp"].dt.hour == 8).all()),
+            "rates": {c: v["mean"] for c, v in report.rate_unit_findings.items()},
         }
         if not report.ok:
             job["status"] = "error"
@@ -146,7 +165,14 @@ def run_pipeline(csv_path: Path, job: dict):
             "histogram": np.histogram(nights["M"], bins=30)[0].tolist(),
             "histogram_edges": np.histogram(nights["M"], bins=30)[1].round(0).tolist(),
             "q_star": q_star,
+            "q_policy": EngineConfig.full_4tier().risk.q_policy,
             "cost_curve": curve,
+            # Raw samples behind the reserve calculator, which re-derives
+            # buffers client-side for any rate / fee / coverage the user types.
+            "M_weekday": sorted(round(float(x)) for x in weekday_M),
+            "M_weekend": sorted(round(float(x)) for x in weekend_M),
+            "repo_rate_mean": repo_rate_mean, "break_fee_mean": break_fee_mean,
+            "overdraft_apr_mean": float(df["emergency_overdraft_penalty_apr_pct"].mean()),
         }
 
         _set(job, "sim", 40)
@@ -191,17 +217,24 @@ def run_pipeline(csv_path: Path, job: dict):
             "oracle": OraclePolicy(df),
         }
         scoreboard = {}
-        ballast_trace = None
+        traces = {}
         for name, pol in policies.items():
             r = sim.run(pol)
             scoreboard[name] = r.summary
-            if name == "ballast":
-                ballast_trace = r.trace
+            traces[name] = r.trace
+        ballast_trace = traces["ballast"]
+        job["net_income_daily"] = _net_income_daily(traces)
         job["scoreboard"] = scoreboard
         job["best_static_buffer"] = best_buf
+        job["capital"] = capital
 
         regret_df = decompose_regret(df, cfg, ballast_trace)
         job["regret"] = summarize_regret(regret_df)
+        decisions = _decision_log(df, ballast_trace, regret_df, policies["ballast"].decision_log)
+        job["decisions"] = decisions
+        job["calibration"] = _calibration(decisions, cfg.risk.q_policy)
+        static_name = next(n for n in policies if n.startswith("static_"))
+        job["monthly"] = _monthly_pnl(traces["ballast"], traces[static_name], decisions)
 
         _set(job, "stress", 75)
         CAP = cfg.assumptions.opening_cash_usd * 0.5
@@ -217,9 +250,257 @@ def run_pipeline(csv_path: Path, job: dict):
             }
         job["stress"] = stress_results
         job["stress_cap"] = CAP
+        job["stress_start"] = str(start)
+
+        _set(job, "audit", 90)
+        job["integrity"] = _integrity_checks(df, cfg, ballast_trace, scoreboard["ballast"], report)
 
         _set(job, "done", 100)
         job["status"] = "done"
     except Exception as e:  # noqa: BLE001
         job["status"] = "error"
         job["error"] = f"{e}\n{traceback.format_exc()}"
+
+
+def _net_income_daily(traces: dict) -> dict:
+    """Cumulative net income (interest earned minus every fee, haircut and
+    penalty) per policy, sampled at each day's last hour -- daily resolution
+    keeps the polled payload small."""
+    out, dates = {}, None
+    for name, tr in traces.items():
+        daily = tr.set_index("timestamp")[["cumulative_accrual_income", "cumulative_fees_paid"]].resample("D").last()
+        if dates is None:
+            dates = [str(d.date()) for d in daily.index]
+        out[name] = (daily["cumulative_accrual_income"] - daily["cumulative_fees_paid"]).round(0).tolist()
+    return {"dates": dates or [], "series": out}
+
+
+def _decision_log(df: pd.DataFrame, trace: pd.DataFrame, regret_df: pd.DataFrame, log: list[dict]) -> list[dict]:
+    """One row per night: what Ballast knew at 17:00, what it did, and what
+    the night then did to it. Outcome classes keep the book's structural
+    cash drain (capital-constrained nights, where even a perfect forecaster
+    could not have covered the drain) separate from genuine policy misses."""
+    if len(regret_df) == 0:
+        return []
+    by_t = {e["t_idx"]: e for e in log}
+    ts_to_idx = {ts: i for i, ts in enumerate(trace["timestamp"])}
+    net = df["net_flow_usd"].to_numpy()
+    cum_fees = trace["cumulative_fees_paid"].to_numpy()
+    wf_t1 = trace["waterfall_tier1"].to_numpy()
+    wf_od = trace["waterfall_overdraft"].to_numpy()
+    od = trace["overdraft_drawn"].to_numpy()
+    sweep = trace["sweep_amount"].to_numpy()
+    rows = []
+    for n in regret_df.itertuples():
+        t = ts_to_idx.get(n.night_start)
+        if t is None or t == 0:
+            continue
+        end = min(t + OVERNIGHT_HOURS, len(trace))
+        e = by_t.get(t, {})
+        swept = float(sweep[t])
+        buffer = float(n.buffer_policy)
+        M = float(n.M_realized)
+        if n.capital_constrained:
+            outcome = "constrained"
+        elif buffer >= M:
+            outcome = "covered"
+        else:
+            outcome = "short"
+        rate = e.get("repo_rate", float(df["tier1_repo_rate_apy"].iloc[t]))
+        path = -np.cumsum(net[t:end])
+        rows.append({
+            "date": str(n.night_start.date()), "dow": int(n.night_start.dayofweek),
+            "weekend": bool(e.get("weekend", n.night_start.dayofweek in (4, 5))),
+            "cash": round(float(n.cash_before)), "buffer": round(buffer), "swept": round(swept),
+            "M": round(M), "outcome": outcome,
+            "in_overdraft": bool(od[t - 1] > 1e-6),
+            "q_star": _r5(e.get("q_star")), "q_eff": _r5(e.get("q_eff")),
+            "n_samples": e.get("n_samples", 0), "basis": e.get("basis", "unknown"),
+            "repo_rate": round(rate, 4),
+            "break_fee": e.get("break_fee", float(df["tier1_early_redemption_haircut_pct"].iloc[t])),
+            "interest": round(swept * rate / 100.0 * OVERNIGHT_HOURS / 8760),
+            "repo_broken": round(float(wf_t1[t:end].sum())),
+            "overdraft_used": round(float(wf_od[t:end].sum())),
+            "fees": round(float(cum_fees[end - 1] - cum_fees[t - 1])),
+            # Cumulative outflow hour by hour through the night, in $K to keep
+            # the payload small (364 nights x 15 hours).
+            "path_k": [round(float(x) / 1000) for x in path],
+        })
+    return rows
+
+
+def _r5(x):
+    return None if x is None else round(float(x), 5)
+
+
+def _calibration(decisions: list[dict], q_policy: float) -> dict:
+    """Out-of-sample check of the coverage promise: on nights where the book
+    had the cash to post the buffer it chose, how often did that buffer
+    actually cover the night's worst drain?"""
+    out = {"target": q_policy}
+    for key, sel in (("weekday", False), ("weekend", True)):
+        eligible = [d for d in decisions if d["weekend"] == sel and d["outcome"] != "constrained"
+                    and d["basis"] == "regime_quantile"]
+        covered = sum(1 for d in eligible if d["outcome"] == "covered")
+        out[key] = {"n": len(eligible), "covered": covered,
+                    "rate": covered / len(eligible) if eligible else None}
+    all_e = out["weekday"]["n"] + out["weekend"]["n"]
+    all_c = out["weekday"]["covered"] + out["weekend"]["covered"]
+    out["all"] = {"n": all_e, "covered": all_c, "rate": all_c / all_e if all_e else None}
+    out["n_constrained"] = sum(1 for d in decisions if d["outcome"] == "constrained")
+    out["n_warmup"] = sum(1 for d in decisions if d["basis"] != "regime_quantile")
+    return out
+
+
+def _monthly_pnl(ballast: pd.DataFrame, static: pd.DataFrame, decisions: list[dict]) -> list[dict]:
+    def monthly(tr):
+        m = tr.set_index("timestamp")[["cumulative_accrual_income", "cumulative_fees_paid"]].resample("MS").last()
+        return m.diff().fillna(m.iloc[:1])
+    b, st = monthly(ballast), monthly(static)
+    dec = pd.DataFrame(decisions)
+    if len(dec):
+        dec["month"] = pd.to_datetime(dec["date"]).dt.strftime("%Y-%m")
+    rows = []
+    for ts in b.index:
+        key = ts.strftime("%Y-%m")
+        md = dec[dec["month"] == key] if len(dec) else dec
+        b_net = float(b.loc[ts, "cumulative_accrual_income"] - b.loc[ts, "cumulative_fees_paid"])
+        s_net = float(st.loc[ts, "cumulative_accrual_income"] - st.loc[ts, "cumulative_fees_paid"])
+        rows.append({
+            "month": key,
+            "interest": round(float(b.loc[ts, "cumulative_accrual_income"])),
+            "fees": round(float(b.loc[ts, "cumulative_fees_paid"])),
+            "net": round(b_net), "static_net": round(s_net), "vs_static": round(b_net - s_net),
+            "nights": int(len(md)),
+            "nights_swept": int((md["swept"] > 0).sum()) if len(md) else 0,
+            "nights_short": int((md["outcome"] == "short").sum()) if len(md) else 0,
+            "avg_swept": round(float(md["swept"].mean())) if len(md) else 0,
+        })
+    return rows
+
+
+def _integrity_checks(df: pd.DataFrame, cfg: EngineConfig, trace: pd.DataFrame, summary: dict, report) -> list[dict]:
+    """Invariants re-proven on every run, on this data -- not unit tests that
+    ran once on the sample file."""
+    checks = []
+    total = trace["tier0"] + trace["tier1"] + trace["tier2"] + trace["tier3"] - trace["overdraft_drawn"]
+    expected = (cfg.assumptions.opening_cash_usd + df["net_flow_usd"].iloc[:len(trace)].cumsum().to_numpy()
+                + trace["cumulative_accrual_income"] - trace["cumulative_fees_paid"])
+    drift = float((total - expected).abs().max())
+    checks.append({"name": "Every dollar accounted for",
+                   "detail": f"Cash + all tiers − overdraft equals opening capital + net flows + income − fees "
+                             f"at every one of {len(trace):,} hours (max drift ${drift:,.2f}).",
+                   "passed": bool(drift < 1.0)})
+
+    swept = trace[trace["sweep_amount"] > 1e-6]
+    off_hour = int((swept["timestamp"].dt.hour != 17).sum())
+    checks.append({"name": "Sweeps only at 17:00",
+                   "detail": f"{len(swept):,} sweeps executed; {off_hour} outside the 17:00 window.",
+                   "passed": off_hour == 0})
+
+    d1 = trace["tier1"].diff()
+    early = trace[(d1 < -1.0) & (trace["timestamp"].dt.hour != 8)]
+    unlogged = int((early["waterfall_tier1"] <= 1e-6).sum())
+    checks.append({"name": "Repo released only at 08:00",
+                   "detail": f"{len(early):,} early repo draws, every one a logged emergency break "
+                             f"({unlogged} unexplained).",
+                   "passed": unlogged == 0})
+
+    # No look-ahead: decisions made on a truncated file (the future physically
+    # absent) must match the full-file run hour for hour.
+    cut = min(len(df), 24 * 75 + 18)
+    short = Simulator(df.iloc[:cut].reset_index(drop=True), cfg).run(BallastPolicy()).trace
+    mismatch = float(np.abs(short["sweep_amount"].to_numpy() - trace["sweep_amount"].iloc[:cut].to_numpy()).max())
+    n_dec = int((short["timestamp"].dt.hour == 17).sum())
+    checks.append({"name": "No look-ahead",
+                   "detail": f"Re-ran the first {n_dec} decisions with every later row deleted from the file: "
+                             f"identical sweeps (max difference ${mismatch:,.2f}).",
+                   "passed": bool(mismatch < 1.0)})
+
+    checks.append({"name": "Every payout funded",
+                   "detail": f"{summary['payout_success_rate'] * 100:.2f}% of withdrawals paid on time through the "
+                             f"funding waterfall.",
+                   "passed": bool(summary["payout_success_rate"] >= 0.999999)})
+
+    checks.append({"name": "Input data is clean",
+                   "detail": f"{report.n_rows:,} hourly rows, {report.n_missing_hours} missing, "
+                             f"{report.n_duplicate_timestamps} duplicated; net flow = deposits − withdrawals on every row "
+                             f"(to within ${report.max_net_flow_mismatch:.2f} rounding).",
+                   "passed": bool(report.is_continuous_hourly and report.max_net_flow_mismatch <= 0.011)})
+    return checks
+
+
+def _deposit_freeze(df: pd.DataFrame, start: pd.Timestamp, duration_hours: int) -> pd.DataFrame:
+    out = df.copy()
+    mask = (out["timestamp"] >= start) & (out["timestamp"] < start + pd.Timedelta(hours=duration_hours))
+    out.loc[mask, "deposits_usd"] = 0.0
+    out.loc[mask, "net_flow_usd"] = out.loc[mask, "deposits_usd"] - out.loc[mask, "withdrawals_usd"]
+    return out
+
+
+STRESS_SCENARIOS = ("withdrawal_surge", "deposit_freeze", "bank_run", "payday_surge")
+
+
+def run_custom_stress(csv_path: Path, capital: float, scenario: str, start: str,
+                      multiplier: float, duration_hours: int) -> dict:
+    """Stress Lab: one user-specified shock, replayed through the full
+    waterfall against a finite emergency line (half the opening capital,
+    the same line the preset scenarios use)."""
+    from engine.stress.scenarios import payday_surge, holiday_withdrawal_surge, svb_calibrated_run
+
+    df = load_raw(csv_path)
+    cfg = EngineConfig.full_4tier()
+    cfg.assumptions.opening_cash_usd = capital
+    cfg.assumptions.deposit_base_usd = capital
+    cap = capital * 0.5
+    start_ts = pd.Timestamp(start).floor("h")
+    start_ts = min(max(start_ts, df["timestamp"].iloc[24 * 8]), df["timestamp"].iloc[-48])
+    duration_hours = int(max(1, min(duration_hours, 24 * 14)))
+
+    if scenario == "withdrawal_surge":
+        shocked = holiday_withdrawal_surge(df, start_ts, multiplier=multiplier, duration_hours=duration_hours)
+        label = f"Withdrawals ×{multiplier:g} for {duration_hours}h"
+    elif scenario == "deposit_freeze":
+        shocked = _deposit_freeze(df, start_ts, duration_hours)
+        label = f"Deposits stop for {duration_hours}h"
+    elif scenario == "bank_run":
+        shocked = svb_calibrated_run(df, start_ts, capital, day1_frac=multiplier / 100.0)
+        label = f"Bank run: {multiplier:g}% of deposits pulled in 24h, doubled queue the next day"
+    elif scenario == "payday_surge":
+        shocked = payday_surge(df, start_ts, multiplier=multiplier, duration_hours=duration_hours)
+        label = f"Deposits ×{multiplier:g} for {duration_hours}h"
+    else:
+        raise ValueError(f"Unknown scenario '{scenario}'")
+
+    res = survival_horizon(shocked, cfg, BallastPolicy(), overdraft_line_cap_usd=cap)
+
+    # Hour-by-hour window around the shock for the chart, shocked vs. unshocked.
+    # Truncating the file at the window's end is safe: no decision before it
+    # can see past it (the no-look-ahead check above proves exactly that).
+    lo = int(df.index[df["timestamp"] >= start_ts - pd.Timedelta(hours=24)][0])
+    hi_ts = start_ts + pd.Timedelta(hours=max(96, duration_hours + 48))
+    hi = int(df.index[df["timestamp"] <= hi_ts][-1]) + 1
+    cfg_cap = EngineConfig(mode=cfg.mode, tiers=cfg.tiers, risk=cfg.risk, assumptions=cfg.assumptions, seed=cfg.seed)
+    cfg_cap.risk.overdraft_line_cap_usd = cap
+    base_tr = Simulator(df.iloc[:hi].reset_index(drop=True), cfg_cap).run(BallastPolicy(), stop_on_default=True).trace
+    shock_tr = Simulator(shocked.iloc[:hi].reset_index(drop=True), cfg_cap).run(BallastPolicy(), stop_on_default=True).trace
+
+    def window(tr):
+        tr = tr.iloc[lo:hi]
+        return {"ts": [str(x) for x in tr["timestamp"]],
+                "liquid": (tr["tier0"] + tr["tier1"] - tr["overdraft_drawn"]).round(0).tolist(),
+                "overdraft": tr["overdraft_drawn"].round(0).tolist()}
+
+    in_window = shock_tr["timestamp"] >= start_ts
+    n = min(len(base_tr), len(shock_tr))
+    extra_fees = float(shock_tr["cumulative_fees_paid"].iloc[n - 1] - base_tr["cumulative_fees_paid"].iloc[n - 1])
+    return {
+        "label": label, "start": str(start_ts), "cap": cap,
+        "survived": res.survived,
+        "failure_ts": str(res.survival_timestamp) if res.survival_timestamp is not None else None,
+        "hours_to_failure": (int((res.survival_timestamp - start_ts) / pd.Timedelta(hours=1))
+                             if res.survival_timestamp is not None else None),
+        "peak_overdraft": float(shock_tr.loc[in_window, "overdraft_drawn"].max()) if in_window.any() else 0.0,
+        "extra_fees_in_window": extra_fees,
+        "baseline": window(base_tr), "shocked": window(shock_tr),
+    }

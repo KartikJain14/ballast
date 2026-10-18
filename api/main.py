@@ -14,6 +14,7 @@ only a freshly uploaded CSV triggers a live run.
 """
 from __future__ import annotations
 
+import gzip
 import io
 import json
 import sys
@@ -21,14 +22,14 @@ import threading
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from api.pipeline import run_pipeline  # noqa: E402
+from api.pipeline import run_pipeline, run_custom_stress, PIPELINE_VERSION, STRESS_SCENARIOS  # noqa: E402
 from api.ai_summary import generate_summary, generate_summary_stream  # noqa: E402
 from engine.data import RAW_COLUMNS, DEFAULT_CSV_PATH  # noqa: E402
 
@@ -84,7 +85,16 @@ def list_datasets():
 
 
 def _cache_path(key: str) -> Path:
-    return PRECOMPUTE_DIR / f"{key}.json"
+    # Versioned so a deploy that changes the pipeline's output recomputes
+    # instead of serving a cache written by the previous build.
+    return PRECOMPUTE_DIR / f"{key}.v{PIPELINE_VERSION}.json"
+
+
+def _cacheable(job: dict) -> dict:
+    """Everything except transient progress fields and in-memory-only keys
+    (prefixed with an underscore, e.g. the source CSV path)."""
+    return {k: v for k, v in job.items()
+            if k not in ("status", "stage", "stage_label", "percent") and not k.startswith("_")}
 
 
 def _done_job_from_cache(key: str) -> dict | None:
@@ -106,7 +116,7 @@ def _precompute_and_cache(key: str, csv_path: Path):
     run_pipeline(csv_path, job)
     if job.get("status") == "done":
         with open(_cache_path(key), "w") as f:
-            json.dump({k: v for k, v in job.items() if k not in ("status", "stage", "stage_label", "percent")}, f)
+            json.dump(_cacheable(job), f)
 
 
 def _warm_all_sequentially():
@@ -129,7 +139,7 @@ def _warm_reference_datasets():
 
 def _start_job(csv_path: Path) -> str:
     job_id = str(uuid.uuid4())
-    job = {"status": "running", "stage": "validate", "percent": 0}
+    job = {"status": "running", "stage": "validate", "percent": 0, "_csv_path": csv_path}
     JOBS[job_id] = job
     t = threading.Thread(target=run_pipeline, args=(csv_path, job), daemon=True)
     t.start()
@@ -147,6 +157,7 @@ def run_dataset(key: str):
     cached = _done_job_from_cache(key)
     if cached is not None:
         job_id = str(uuid.uuid4())
+        cached["_csv_path"] = meta["path"]
         JOBS[job_id] = cached
         return {"job_id": job_id, "cached": True}
 
@@ -165,7 +176,7 @@ def _watch_and_cache(job_id: str, key: str):
             return
         if job.get("status") == "done":
             with open(_cache_path(key), "w") as f:
-                json.dump({k: v for k, v in job.items() if k not in ("status", "stage", "stage_label", "percent")}, f)
+                json.dump(_cacheable(job), f)
             return
         if job.get("status") == "error":
             return
@@ -181,6 +192,13 @@ def run_sample():
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     raw = await file.read()
+    # The browser gzips the CSV before sending (a year of hourly data is
+    # ~1.2MB raw, over common reverse-proxy body limits; ~0.4MB gzipped).
+    if raw[:2] == b"\x1f\x8b":
+        try:
+            raw = gzip.decompress(raw)
+        except OSError as e:
+            raise HTTPException(400, f"Could not decompress upload: {e}")
     if len(raw) > 60 * 1024 * 1024:
         raise HTTPException(413, "File too large (60MB limit).")
     try:
@@ -217,27 +235,56 @@ def status(job_id: str):
     }
 
 
+RESULT_KEYS = ("validation", "flows", "risk", "scoreboard", "best_static_buffer", "regret", "stress",
+               "stress_cap", "stress_start", "net_income_daily", "decisions", "calibration", "monthly",
+               "integrity", "capital")
+
+
 @app.get("/api/results/{job_id}")
-def results(job_id: str):
+def results(job_id: str, skip: str = ""):
     """Returns whatever sections of the analysis are ready RIGHT NOW, even
     mid-run -- the pipeline fills in job['flows'], job['risk'], etc. as each
     stage completes, so the frontend can render each chart the moment its
-    real data exists instead of waiting for the entire ~40s run to finish."""
+    real data exists instead of waiting for the entire ~40s run to finish.
+    `skip` lists sections the client already holds, so the large ones are
+    not re-sent on every poll."""
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(404, "Unknown job id.")
-    return JSONResponse({
+    skipped = set(skip.split(",")) if skip else set()
+    payload = {
         "status": job.get("status", "running"),
         "stage": job.get("stage"), "percent": job.get("percent", 0),
-        "validation": job.get("validation"),
-        "flows": job.get("flows"),
-        "risk": job.get("risk"),
-        "scoreboard": job.get("scoreboard"),
-        "best_static_buffer": job.get("best_static_buffer"),
-        "regret": job.get("regret"),
-        "stress": job.get("stress"),
-        "stress_cap": job.get("stress_cap"),
-    })
+        "error": job.get("error"),
+    }
+    for k in RESULT_KEYS:
+        if k not in skipped:
+            payload[k] = job.get(k)
+    return JSONResponse(payload)
+
+
+@app.post("/api/stress/{job_id}")
+def custom_stress(job_id: str, body: dict = Body(...)):
+    """Stress Lab: replays one user-defined shock through the full engine.
+    Synchronous (runs in FastAPI's worker pool); takes a few seconds."""
+    job = JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(404, "Unknown job id.")
+    if job.get("status") != "done" or "_csv_path" not in job:
+        raise HTTPException(409, "Analysis not finished yet.")
+    scenario = body.get("scenario")
+    if scenario not in STRESS_SCENARIOS:
+        raise HTTPException(400, f"scenario must be one of {list(STRESS_SCENARIOS)}")
+    try:
+        multiplier = float(body.get("multiplier", 3.0))
+        duration = int(body.get("duration_hours", 48))
+        start = str(body.get("start") or job.get("stress_start"))
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, f"Bad parameter: {e}")
+    if not (0 < multiplier <= 100):
+        raise HTTPException(400, "multiplier must be between 0 and 100")
+    capital = job.get("capital") or 2_000_000_000.0
+    return JSONResponse(run_custom_stress(Path(job["_csv_path"]), capital, scenario, start, multiplier, duration))
 
 
 @app.get("/api/summarize/{job_id}")
