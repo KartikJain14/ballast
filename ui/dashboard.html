@@ -411,7 +411,7 @@
 <script>
 (function(){
   const $ = (s) => document.querySelector(s);
-  const fmtUsd = (v, dp=0) => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: dp});
+  const fmtUsd = (v, dp=0) => '$' + Number(v).toLocaleString('en-US', {maximumFractionDigits: dp});
   const fmtCompact = (v) => {
     const a = Math.abs(v);
     if (a >= 1e9) return (v/1e9).toFixed(2) + 'B';
@@ -559,10 +559,10 @@
   // a staggered timer, so text reads as assembling itself rather than just
   // appearing -- driven by REAL chunk arrivals from the streaming endpoint,
   // not a fake timer animating static text.
-  function createSandRenderer(el) {
+  function createSandRenderer(el, onSettled) {
     const SCRAMBLE = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const chars = [];
-    let rafId = null, streamDone = false;
+    let rafId = null, streamDone = false, settled = false;
     const esc = (c) => c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c;
 
     function appendText(text) {
@@ -591,7 +591,12 @@
       }
       el.innerHTML = html;
       if (!allResolved || !streamDone) { rafId = requestAnimationFrame(tick); }
-      else { rafId = null; }
+      else {
+        rafId = null;
+        // Only now is it safe to add anything after the text: every earlier
+        // frame rewrites innerHTML and would wipe it out.
+        if (!settled) { settled = true; if (onSettled) onSettled(); }
+      }
     }
 
     function finish() { streamDone = true; if (!rafId) rafId = requestAnimationFrame(tick); }
@@ -601,38 +606,46 @@
   async function streamSummary(jobId) {
     const el = $('#summary-text');
     el.innerHTML = '';
-    const sand = createSandRenderer(el);
+    const MARKER = '\n__SOURCE__:';
     let source = 'template';
+    const sand = createSandRenderer(el, () => {
+      const badge = document.createElement('span');
+      badge.className = 'summary-badge';
+      badge.textContent = source === 'gemini' ? 'Generated from the figures above' : 'Summary derived from the figures above';
+      el.appendChild(badge);
+    });
     try {
       const resp = await fetch(`/api/summarize-stream/${jobId}`);
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = '', sawMarker = false;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        // hold back any partial trailing marker until we're sure it's not __SOURCE__
-        const markerIdx = buffer.indexOf('\n__SOURCE__:');
-        if (markerIdx === -1) {
-          sand.appendText(buffer);
-          buffer = '';
-        } else {
+        if (sawMarker) { continue; }
+        const markerIdx = buffer.indexOf(MARKER);
+        if (markerIdx !== -1) {
           sand.appendText(buffer.slice(0, markerIdx));
-          source = buffer.slice(markerIdx + '\n__SOURCE__:'.length).trim() || source;
-          buffer = '';
+          buffer = buffer.slice(markerIdx + MARKER.length);
+          sawMarker = true;
+          continue;
         }
+        // Hold back a trailing fragment that could be the start of the marker
+        // split across two network chunks, so it never flashes as visible text.
+        let keep = 0;
+        for (let k = Math.min(MARKER.length - 1, buffer.length); k > 0; k--) {
+          if (MARKER.startsWith(buffer.slice(-k))) { keep = k; break; }
+        }
+        sand.appendText(buffer.slice(0, buffer.length - keep));
+        buffer = buffer.slice(buffer.length - keep);
       }
+      if (sawMarker) source = buffer.trim() || source;
+      else if (buffer) sand.appendText(buffer);
     } catch (e) {
       sand.appendText('Summary unavailable for this run.');
     } finally {
       sand.finish();
-      setTimeout(() => {
-        const badge = document.createElement('span');
-        badge.className = 'summary-badge';
-        badge.textContent = source === 'gemini' ? 'Generated from the figures above' : 'Summary derived from the figures above';
-        el.appendChild(badge);
-      }, 500);
     }
   }
 
@@ -740,7 +753,7 @@
     const start = performance.now(); const dur = 1400;
     function step(now) {
       const p = Math.min(1, (now-start)/dur); const eased = 1 - Math.pow(1-p, 3);
-      el.textContent = prefix + (target*eased).toLocaleString(undefined,{maximumFractionDigits:dp}) + suffix;
+      el.textContent = prefix + (target*eased).toLocaleString('en-US',{maximumFractionDigits:dp}) + suffix;
       if (p < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
@@ -805,7 +818,14 @@
     const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
     ctx.clearRect(0,0,w,h);
     const allVals = series.flatMap(s => s.data);
-    const min = Math.min(0, ...allVals), max = Math.max(...allVals);
+    const dataMin = Math.min(...allVals), dataMax = Math.max(...allVals);
+    // Default anchors at zero (right for cumulative net flow, which crosses it).
+    // opts.fitRange instead fits the axis to the data with a little headroom --
+    // for strictly-positive series like daily deposits, a zero baseline wastes
+    // most of the chart and flattens the variation that matters.
+    const span = (dataMax - dataMin) || Math.abs(dataMax) || 1;
+    const min = opts.fitRange ? dataMin - span * 0.08 : Math.min(0, dataMin);
+    const max = opts.fitRange ? dataMax + span * 0.08 : dataMax;
     const yScale = (v) => pad.t + plotH - ((v-min)/(max-min||1))*plotH;
     const xScale = (i,n) => pad.l + (i/(n-1))*plotW;
     canvas._layout = { kind: 'area', pad, plotW, plotH, series, labels: opts.xLabels };
@@ -910,7 +930,7 @@
         if (d < nearestD) { nearestD = d; nearest = p; }
       });
       if (!nearest || nearestD > 18) { hideTooltip(); return; }
-      const dateStr = new Date(nearest.x).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric' });
+      const dateStr = new Date(nearest.x).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric' });
       showTooltip(cx, cy, `<strong>${dateStr}</strong><br/>${fmtUsd(nearest.y)}<br/><span style="color:${nearest.color}">${nearest.label||''}</span>`);
     });
     ctx.strokeStyle = 'rgba(236,233,228,0.18)';
@@ -936,14 +956,14 @@
     const n = flows.daily_deposits.length;
     const totalDep = flows.daily_deposits.reduce((a,b)=>a+b,0);
     const totalWd = flows.daily_withdrawals.reduce((a,b)=>a+b,0);
-    $('#raw-sub').innerHTML = `${n.toLocaleString()} days of hourly data, rolled up to a daily view. Total deposits over
+    $('#raw-sub').innerHTML = `${n.toLocaleString('en-US')} days of hourly data, rolled up to a daily view. Total deposits over
       the period: <strong style="color:var(--ink);">${fmtUsd(totalDep)}</strong>. Total withdrawals:
       <strong style="color:var(--ink);">${fmtUsd(totalWd)}</strong>. ${flows.pct_hours_net_outflow.toFixed(1)}% of all
       hours were net-outflow hours.`;
     animateChart((p) => drawAreaLine($('#chart-raw'), [
       { data: flows.daily_deposits, color: COLORS.sage, fill: false, width: 1.2, name: 'Deposits' },
       { data: flows.daily_withdrawals, color: COLORS.terracotta, fill: false, width: 1.2, name: 'Withdrawals' },
-    ], { progress: p, xLabels: flows.daily_timestamps.map(t => new Date(t).toLocaleDateString(undefined, {month:'short', day:'numeric'})) }));
+    ], { progress: p, fitRange: true, xLabels: flows.daily_timestamps.map(t => new Date(t).toLocaleDateString('en-US', {month:'short', day:'numeric'})) }));
   }
 
   function renderFlows(flows) {
@@ -952,7 +972,7 @@
       : `Cumulative net flow grew to ${fmtUsd(flows.cumulative_net_flow_final)} over the period.`;
     animateChart((p) => drawAreaLine($('#chart-flow'), [
       { data: flows.daily_cum_net, color: COLORS.gold, fill: true, width: 1.4, name: 'Cumulative net flow' },
-    ], { progress: p, xLabels: flows.daily_timestamps.map(t => new Date(t).toLocaleDateString(undefined, {month:'short', day:'numeric'})) }));
+    ], { progress: p, xLabels: flows.daily_timestamps.map(t => new Date(t).toLocaleDateString('en-US', {month:'short', day:'numeric'})) }));
 
     const spikes = flows.spikes;
     const points = spikes.map(s => ({ x: new Date(s.ts).getTime(), y: s.net_flow, color: CAUSE_COLORS[s.label] || COLORS.inkFaint, label: s.label }));
@@ -1095,10 +1115,10 @@
       { key: 'net_interest_bps_on_avg_balance', label: 'Net interest, bps on avg. balance', fmt: (v) => v.toFixed(1) + ' bps' },
       { key: 'total_fees_paid', label: 'Total fees / haircuts / penalties', fmt: fmtUsd },
       { key: 'foregone_tier0_interest_estimate', label: 'Foregone interest (idle cash)', fmt: fmtUsd },
-      { key: 'overdraft_hours', label: 'Overdraft hours', fmt: (v) => v.toLocaleString() },
-      { key: 'overdraft_event_count', label: 'Overdraft draw events', fmt: (v) => v.toLocaleString() },
-      { key: 'n_tier_breaks', label: 'Early tier breaks', fmt: (v) => v.toLocaleString() },
-      { key: 'four_eyes_events', label: 'Four-eyes approval events', fmt: (v) => v.toLocaleString() },
+      { key: 'overdraft_hours', label: 'Overdraft hours', fmt: (v) => v.toLocaleString('en-US') },
+      { key: 'overdraft_event_count', label: 'Overdraft draw events', fmt: (v) => v.toLocaleString('en-US') },
+      { key: 'n_tier_breaks', label: 'Early tier breaks', fmt: (v) => v.toLocaleString('en-US') },
+      { key: 'four_eyes_events', label: 'Four-eyes approval events', fmt: (v) => v.toLocaleString('en-US') },
       { key: 'payout_success_rate', label: 'Payout success rate', fmt: (v) => (v*100).toFixed(3) + '%' },
     ];
     let html = '<table class="depth-table"><thead><tr><th>Metric</th>' +

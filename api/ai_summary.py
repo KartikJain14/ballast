@@ -47,14 +47,17 @@ def _facts_and_prompt(data: dict) -> tuple[dict, str]:
     # signed number against an awkward key name -- that produced sentences
     # like "...resulting in Ballast dollars saved of -17009637").
     comparison_word = "saved" if improvement >= 0 else "cost extra"
+    usd = lambda v: f"${round(v):,}"
+    # Dollar figures go to the model pre-formatted ("$21,352,965"): given bare
+    # integers it quoted them as "$21352965", which reads badly on screen.
     facts = {
-        "ballast_net_interest_earned_usd": round(ballast["net_interest_earned"]),
-        "ballast_total_cost_of_liquidity_usd": round(ballast["total_cost_of_liquidity"]),
+        "ballast_net_interest_earned": usd(ballast["net_interest_earned"]),
+        "ballast_total_cost_of_liquidity": usd(ballast["total_cost_of_liquidity"]),
         "name_of_the_best_competing_non_ballast_strategy": best_naive,
-        "that_competing_strategys_total_cost_of_liquidity_usd": round(sb[best_naive]["total_cost_of_liquidity"]),
+        "that_competing_strategys_total_cost_of_liquidity": usd(sb[best_naive]["total_cost_of_liquidity"]),
         "ballast_vs_competing_strategy_comparison_word": comparison_word,
-        "ballast_vs_competing_strategy_dollar_amount_usd": abs(round(improvement)),
-        "theoretical_perfect_foresight_best_possible_cost_usd": round(sb.get("oracle", {}).get("total_cost_of_liquidity", 0)),
+        "ballast_vs_competing_strategy_dollar_amount": usd(abs(improvement)),
+        "theoretical_perfect_foresight_best_possible_cost": usd(sb.get("oracle", {}).get("total_cost_of_liquidity", 0)),
         "ballast_payout_success_rate_pct": round(ballast["payout_success_rate"] * 100, 3),
         "n_nights_analyzed": data["risk"]["n_nights"],
         "riskiest_night_of_week": max(data["risk"]["by_dow"], key=lambda k: data["risk"]["by_dow"][k]["mean"]),
@@ -70,9 +73,9 @@ def _facts_and_prompt(data: dict) -> tuple[dict, str]:
         "given below -- do not invent any numbers, dates, or claims beyond them, and do not confuse Ballast "
         "with the competing strategy it is being compared against. Be direct and confident, not hedging. "
         "Quote every dollar figure EXACTLY as given below -- never round, approximate, or restate a figure as a "
-        "different number (e.g. if a figure is 4,712, say 4,712, never '$0' or '$5,000'). "
+        "different number (e.g. if a figure is \"$4,712\", write $4,712 -- keep the dollar sign and the commas exactly). "
         "For the comparison to the competing strategy, write it as a natural sentence like "
-        "'Ballast {comparison_word} ${amount} compared to {strategy}' using the comparison word field exactly "
+        "'Ballast {comparison_word} {amount} compared to {strategy}' using the comparison word field exactly "
         "as given (it is already correctly worded for whether this was a saving or an extra cost) -- never say "
         "a negative dollar amount, and never quote a raw field name as if it were a sentence. "
         "Facts (JSON):\n" + json.dumps(facts, indent=2)
