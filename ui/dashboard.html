@@ -172,6 +172,18 @@
   .slider-num-cell .value.accent { color: var(--gold); }
   #chart-curve { width: 100%; display: block; }
 
+  .depth-toggle { margin-top: 24px; font-size: 0.74rem; padding: 8px 16px; }
+  .depth-table-wrap { margin-top: 24px; overflow-x: auto; }
+  table.depth-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  table.depth-table th, table.depth-table td {
+    text-align: right; padding: 10px 16px; border-bottom: 1px solid var(--hairline); font-family: var(--mono);
+    white-space: nowrap;
+  }
+  table.depth-table th:first-child, table.depth-table td:first-child { text-align: left; font-family: var(--sans); }
+  table.depth-table th { color: var(--ink-faint); font-weight: 500; font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  table.depth-table td.highlight { color: var(--gold); }
+  table.depth-table tr:last-child td { border-bottom: none; }
+
   .status-row { display: flex; flex-direction: column; gap: 0; margin-top: 20px; }
   .status-item {
     display: flex; align-items: center; justify-content: space-between; padding: 14px 0;
@@ -352,6 +364,8 @@
          and penalty paid. Lower is superior.</p>
       <div class="panel"><canvas id="chart-score" height="240"></canvas></div>
       <div class="takeaway" id="score-takeaway"></div>
+      <button class="btn depth-toggle" id="btn-depth-toggle">View Detailed Metrics ▾</button>
+      <div class="depth-table-wrap" id="depth-table-wrap" style="display:none;"></div>
       <div class="pending-slot pending-note">Comparing five independent strategies…</div>
     </section>
 
@@ -552,6 +566,13 @@
     }).catch(() => {});
   }
   loadDatasetRow();
+
+  $('#btn-depth-toggle').addEventListener('click', () => {
+    const wrap = $('#depth-table-wrap');
+    const open = wrap.style.display !== 'none';
+    wrap.style.display = open ? 'none' : 'block';
+    $('#btn-depth-toggle').textContent = open ? 'View Detailed Metrics ▾' : 'Hide Detailed Metrics ▴';
+  });
 
   function uploadFile(file) {
     const form = new FormData(); form.append('file', file);
@@ -908,6 +929,34 @@
          that actively sweep is naturally narrow.`
       : `The strategy <strong>${best}</strong> edges out Ballast by ${fmtUsd(-improvement)} on this run — see the
          attribution below for why.`;
+
+    renderDepthTable(sb, names);
+  }
+
+  function renderDepthTable(sb, names) {
+    const metrics = [
+      { key: 'avg_total_balance', label: 'Avg. total balance', fmt: fmtUsd },
+      { key: 'avg_tier0_balance', label: 'Avg. Tier0 (cash) balance', fmt: fmtUsd },
+      { key: 'net_interest_bps_on_avg_balance', label: 'Net interest, bps on avg. balance', fmt: (v) => v.toFixed(1) + ' bps' },
+      { key: 'total_fees_paid', label: 'Total fees / haircuts / penalties', fmt: fmtUsd },
+      { key: 'foregone_tier0_interest_estimate', label: 'Foregone interest (idle cash)', fmt: fmtUsd },
+      { key: 'overdraft_hours', label: 'Overdraft hours', fmt: (v) => v.toLocaleString() },
+      { key: 'overdraft_event_count', label: 'Overdraft draw events', fmt: (v) => v.toLocaleString() },
+      { key: 'n_tier_breaks', label: 'Early tier breaks', fmt: (v) => v.toLocaleString() },
+      { key: 'four_eyes_events', label: 'Four-eyes approval events', fmt: (v) => v.toLocaleString() },
+      { key: 'payout_success_rate', label: 'Payout success rate', fmt: (v) => (v*100).toFixed(3) + '%' },
+    ];
+    let html = '<table class="depth-table"><thead><tr><th>Metric</th>' +
+      names.map(n => `<th>${n.replace(/_/g,' ')}</th>`).join('') + '</tr></thead><tbody>';
+    metrics.forEach(m => {
+      html += `<tr><td>${m.label}</td>` + names.map(n => {
+        const v = sb[n][m.key];
+        const cls = n === 'ballast' ? ' class="highlight"' : '';
+        return `<td${cls}>${v !== undefined ? m.fmt(v) : '—'}</td>`;
+      }).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    $('#depth-table-wrap').innerHTML = html;
   }
 
   function renderRegret(rg) {

@@ -24,6 +24,7 @@ TARGETS = {
     "setup": [[sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]],
     "test": [[sys.executable, "-m", "pytest", "tests/", "-q"]],
     "audit": [[sys.executable, "scripts/audit.py"]],
+    "synthetic": [[sys.executable, "scripts/generate_synthetic.py"]],
     "replay": [[sys.executable, "scripts/replay.py"]],
     "precompute": [[sys.executable, "scripts/precompute.py"]],
     "ui": [[sys.executable, "-m", "streamlit", "run", "ui/app.py"]],

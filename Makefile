@@ -1,10 +1,13 @@
-.PHONY: setup audit replay precompute test demo api ui
+.PHONY: setup audit replay precompute synthetic test demo api ui app
 
 setup:
 	pip install -r requirements.txt
 
 audit:
 	python scripts/audit.py
+
+synthetic:
+	python scripts/generate_synthetic.py
 
 test:
 	python -m pytest tests/ -q

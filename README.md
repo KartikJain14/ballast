@@ -28,10 +28,20 @@ make ui           # streamlit run ui/app.py  (secondary technical console with m
 make demo         # test + audit + replay + precompute + launch the primary app, one command
 ```
 
-`make app` serves a single page at `http://localhost:8000` — drop in your own hourly CSV or click
-"Analyze the Reference Dataset." Every chart, KPI, and the AI executive summary (optional —
-falls back to a deterministic template if no `GEMINI_API_KEY` is set in a local `.env`,
-never required) is computed live from whatever data you give it, not the bundled sample alone.
+`make app` serves a single page at `http://localhost:8000`. Pick the bundled reference dataset
+or one of three generated variants (a growing bank, a high-volatility book, an SVB-style
+run baked into history — `make synthetic` regenerates them), or drop in your own hourly CSV.
+Analysis runs as a real background job with genuine stage-by-stage progress (no fabricated
+timers) and each section of the report renders the moment its own data is ready — the raw
+deposit/withdrawal chart and spike analysis typically appear within ~2 seconds, while the full
+five-strategy comparison and stress tests continue underneath. Every chart supports hover for
+exact values, a "View Detailed Metrics" toggle exposes the full per-policy metric set (balances,
+bps, overdraft hours, tier breaks, four-eyes events — everything the engine computes, not a
+curated subset), and the risk-appetite slider recomputes its cost curve instantly client-side.
+The AI executive summary is optional — falls back to a deterministic template if no
+`GEMINI_API_KEY` is set in a local, gitignored `.env`, never required for the app to work fully.
+The bundled reference datasets are precomputed once (sequentially, in the background) at server
+startup so selecting one is instant; only a freshly uploaded CSV triggers a live ~30-45s run.
 
 **On a stock Windows install** (`make` is not on PATH by default — unlike
 every Unix/macOS system), use the identical cross-platform runner instead —
@@ -65,7 +75,7 @@ see "Why the margin looks small" below.
 ## Architecture
 
 ```
-data/                   treasury_4tier_dataset.csv (the one input)
+data/                   treasury_4tier_dataset.csv + 3 generated synthetic variants (make synthetic)
 engine/
   data.py               ingest, validation, no-look-ahead HistoryView
   config.py             every spec ambiguity as a named, visible parameter
@@ -74,15 +84,21 @@ engine/
   policy/                baselines (all-cash, static, Miller-Orr, ...), Ballast, Oracle
   risk/                  newsvendor sizing, path-max, regret decomposition
   stress/                scenario generators, survival horizon, reverse stress search
+api/
+  main.py                FastAPI app: dataset selection, upload, job polling, results, AI summary
+  pipeline.py             the live analysis pipeline (reuses engine/ end to end; no logic duplication)
+  ai_summary.py           optional Gemini narration of the real computed numbers, offline-safe fallback
 scripts/
   audit.py               make audit
   replay.py              make replay
-  precompute.py          make precompute
+  precompute.py          make precompute (bakes the Streamlit console's cache)
+  generate_synthetic.py  make synthetic (growing / volatile / bank-run-aftermath variants)
 ui/
-  app.py                 Streamlit technical console
-  story.html             animated plain-language walkthrough
+  dashboard.html          the primary app frontend (served by api/main.py at /)
+  app.py                 Streamlit technical console (secondary, more raw tabular detail)
+  story.html             self-contained animated plain-language walkthrough, no server needed
 docs/                    DATA_AUDIT, METHODOLOGY, DECISIONS, MODEL_CARD, RESULTS, DEMO_SCRIPT, ROADMAP
-tests/                   51 tests: property-based ledger tests, no-look-ahead mutation test,
+tests/                   52 tests: property-based ledger tests, no-look-ahead mutation test,
                          oracle correctness, regret-bucket consistency, stress scenarios
 ```
 
@@ -136,4 +152,12 @@ Stress Lab tab.
   (`max_single_sweep_frac`) were caught and fixed using the system's own
   correctness checks (an oracle-vs-itself regret test that should be exactly
   zero caught the second one). See `docs/DECISIONS.md` D6 and D10.
+- The live app's dollar figures for the bundled sample dataset are made to
+  match `docs/RESULTS.md` exactly, on purpose — the opening-capital assumption
+  used for an arbitrary uploaded CSV (auto-scaled to that dataset's own
+  empirical worst-case overnight risk, since there's no pre-derived figure for
+  unknown data) is deliberately NOT applied to the known sample, which instead
+  uses the same carefully-justified $2B from `docs/DECISIONS.md` D6d. Two
+  numbers that look similar but come from different assumptions would be
+  worse than either one alone.
 - Full decision log, including dead ends: `docs/DECISIONS.md`.
