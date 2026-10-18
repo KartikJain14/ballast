@@ -161,3 +161,7 @@ Stress Lab tab.
   numbers that look similar but come from different assumptions would be
   worse than either one alone.
 - Full decision log, including dead ends: `docs/DECISIONS.md`.
+
+---
+
+Built by [Kartik Jain](https://jkartik.in).

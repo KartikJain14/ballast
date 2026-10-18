@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ballast</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <style>
   :root {
     --obsidian: #0b0b0c; --panel: #121214; --panel-hi: #19191c;
@@ -226,6 +227,9 @@
 
   footer { border-top: 1px solid var(--hairline); margin-top: 110px; padding: 48px 0 90px; color: var(--ink-faint); font-size: 0.82rem; font-weight: 300; }
   footer strong { color: var(--ink-dim); font-weight: 500; }
+  footer .made-by { margin-top: 18px; font-size: 0.76rem; letter-spacing: 0.02em; }
+  footer .made-by a { color: var(--ink-dim); }
+  footer .made-by a:hover { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -401,6 +405,7 @@
 <footer class="wrap">
   <p><strong>Every figure above is computed live</strong> by executing the treasury simulation engine against the
      data provided. Nothing is illustrative or precomputed.</p>
+  <p class="made-by">Built by Kartik Jain — <a href="https://jkartik.in" target="_blank" rel="noopener">jkartik.in</a></p>
 </footer>
 
 <script>

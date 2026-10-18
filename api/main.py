@@ -59,6 +59,19 @@ def index():
     return FileResponse(ROOT / "ui" / "dashboard.html")
 
 
+@app.get("/favicon.svg")
+def favicon_svg():
+    return FileResponse(ROOT / "ui" / "favicon.svg", media_type="image/svg+xml")
+
+
+@app.get("/favicon.ico")
+def favicon_ico():
+    # Browsers probe this path unconditionally regardless of <link> tags;
+    # serving the same SVG with the correct content-type avoids a 404 in the
+    # console. All modern browsers render it fine despite the .ico path.
+    return FileResponse(ROOT / "ui" / "favicon.svg", media_type="image/svg+xml")
+
+
 @app.get("/api/datasets")
 def list_datasets():
     return [
