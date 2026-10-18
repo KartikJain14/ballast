@@ -118,6 +118,25 @@ def run_pipeline(csv_path: Path, job: dict):
         dow_stats = nights.groupby("dow")["M"].agg(["mean", "median", "count"])
         by_dow = {dow_names[i]: {"mean": float(r["mean"]), "median": float(r["median"]), "count": int(r["count"])}
                    for i, r in dow_stats.iterrows()}
+        # Cost-of-confidence curve: for the risk-appetite slider, computed ONCE
+        # here so the frontend can interpolate it client-side instantly on every
+        # drag, with zero network round-trips per slider movement.
+        repo_rate_mean = float(df["tier1_repo_rate_apy"].mean())
+        break_fee_mean = float(df["tier1_early_redemption_haircut_pct"].mean())
+        q_star = critical_fractile(break_fee_mean, repo_rate_mean)
+        weekday_M = nights[~nights["dow"].isin([4, 5])]["M"].to_numpy()
+        weekend_M = nights[nights["dow"].isin([4, 5])]["M"].to_numpy()
+        qs = np.concatenate([np.linspace(0.90, 0.99, 19), np.linspace(0.991, 0.9999, 19)])
+        tau = 15 / 8760
+        curve = []
+        for q in qs:
+            b_wd = empirical_quantile_buffer(weekday_M, float(q), min_samples=1)
+            b_we = empirical_quantile_buffer(weekend_M, float(q), min_samples=1)
+            avg_buffer = (b_wd * 5 + b_we * 2) / 7
+            annual_cost = avg_buffer * (repo_rate_mean / 100.0) * (15 * 365 / 8760)
+            curve.append({"q": float(q), "buffer_weekday": float(b_wd), "buffer_weekend": float(b_we),
+                          "annual_foregone_cost": float(annual_cost)})
+
         job["risk"] = {
             "n_nights": len(nights),
             "M_mean": float(nights["M"].mean()), "M_p50": float(nights["M"].median()),
@@ -126,6 +145,8 @@ def run_pipeline(csv_path: Path, job: dict):
             "by_dow": by_dow,
             "histogram": np.histogram(nights["M"], bins=30)[0].tolist(),
             "histogram_edges": np.histogram(nights["M"], bins=30)[1].round(0).tolist(),
+            "q_star": q_star,
+            "cost_curve": curve,
         }
 
         _set(job, "sim", 40)
