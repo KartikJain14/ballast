@@ -267,7 +267,7 @@
       </div>
     </div>
 
-    <section id="raw-section" class="reveal section-pending" style="margin-top:0;">
+    <section id="raw-section" class="section-pending" style="margin-top:0;">
       <div class="raw-grid">
         <div>
           <div class="eyebrow">Your Data, At a Glance</div>
@@ -286,19 +286,19 @@
       <div class="pending-slot pending-note">Reading the uploaded file…</div>
     </section>
 
-    <section id="summary-section" class="reveal section-pending">
+    <section id="summary-section" class="section-pending">
       <div class="eyebrow">Executive Summary</div>
       <div id="summary-card">
         <div id="summary-text" class="pending-slot"><span class="skeleton-line"></span><span class="skeleton-line" style="width:70%; margin-top:8px;"></span></div>
       </div>
     </section>
 
-    <section id="kpi-section" class="reveal section-pending">
+    <section id="kpi-section" class="section-pending">
       <div class="kpi-row" id="kpi-row"></div>
       <div class="pending-slot pending-note">Running strategy simulations…</div>
     </section>
 
-    <section id="flow-section" class="reveal section-pending">
+    <section id="flow-section" class="section-pending">
       <div class="eyebrow">Cash Position</div>
       <h2 class="section-title">The trajectory of the book</h2>
       <p class="section-sub" id="flow-sub"></p>
@@ -311,7 +311,7 @@
       <div class="pending-slot pending-note">Reading deposit and withdrawal history…</div>
     </section>
 
-    <section id="dow-section" class="reveal section-pending">
+    <section id="dow-section" class="section-pending">
       <div class="eyebrow">Overnight Risk</div>
       <h2 class="section-title">Not every night carries the same risk</h2>
       <p class="section-sub">Worst-case cash drain for every overnight window in the period, grouped by day of week.</p>
@@ -320,7 +320,7 @@
       <div class="pending-slot pending-note">Measuring overnight path-max risk…</div>
     </section>
 
-    <section id="slider-section" class="reveal section-pending">
+    <section id="slider-section" class="section-pending">
       <div class="eyebrow">Risk Appetite</div>
       <h2 class="section-title">What does the next "nine" of confidence cost?</h2>
       <p class="section-sub">Drag to set the minimum coverage guarantee. Below it, the pure economic optimum
@@ -342,7 +342,7 @@
       <div class="pending-slot pending-note">Building the cost-of-confidence curve…</div>
     </section>
 
-    <section id="spike-section" class="reveal section-pending">
+    <section id="spike-section" class="section-pending">
       <div class="eyebrow">Anomaly Detection</div>
       <h2 class="section-title">Spikes and depressions, explained</h2>
       <p class="section-sub">The largest single-hour flow events, classified from calendar position alone —
@@ -357,7 +357,7 @@
       <div class="pending-slot pending-note">Scanning for unusual flow events…</div>
     </section>
 
-    <section id="score-section" class="reveal section-pending">
+    <section id="score-section" class="section-pending">
       <div class="eyebrow">Strategy Comparison</div>
       <h2 class="section-title">Five approaches, one book</h2>
       <p class="section-sub">Total cost of liquidity for the full period — foregone interest plus every fee, haircut,
@@ -369,7 +369,7 @@
       <div class="pending-slot pending-note">Comparing five independent strategies…</div>
     </section>
 
-    <section id="regret-section" class="reveal section-pending">
+    <section id="regret-section" class="section-pending">
       <div class="eyebrow">Attribution</div>
       <h2 class="section-title">The remaining distance to optimal</h2>
       <div class="two-col">
@@ -383,7 +383,7 @@
       <div class="pending-slot pending-note">Attributing the gap to the theoretical best case…</div>
     </section>
 
-    <section id="stress-section" class="reveal section-pending">
+    <section id="stress-section" class="section-pending">
       <div class="eyebrow">Stress Testing</div>
       <h2 class="section-title">Behavior under duress</h2>
       <p class="section-sub">Each scenario replays the period with a shock applied against a finite emergency credit
@@ -504,7 +504,7 @@
     $('#landing').style.display = 'none';
     $('#error-banner').style.display = 'none';
     Object.keys(rendered).forEach(k => rendered[k] = false);
-    ['#summary-section','#kpi-section','#flow-section','#dow-section','#spike-section','#score-section','#regret-section','#stress-section']
+    ['#raw-section','#summary-section','#kpi-section','#flow-section','#dow-section','#slider-section','#spike-section','#score-section','#regret-section','#stress-section']
       .forEach(id => { const el = $(id); el.classList.add('section-pending'); el.classList.remove('section-ready'); });
     $('#results').style.display = 'block';
     $('#status-strip').classList.add('show');
