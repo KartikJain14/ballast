@@ -743,9 +743,23 @@
 
   function setupCanvas(canvas) {
     const dpr = window.devicePixelRatio || 1;
+    // IMPORTANT: canvas.height is a reflected attribute -- writing it (below,
+    // to size the backing pixel buffer for DPR) permanently changes what a
+    // LATER read of canvas.height returns. The original bug read canvas.height
+    // as "the desired display height" on every call, including calls AFTER
+    // this function had already multiplied it by dpr -- so on any display
+    // with devicePixelRatio != 1 (effectively all Windows laptops with
+    // display scaling), every redraw during an animation compounded the
+    // height by another factor of dpr, exploding to an enormous size within
+    // the first chart's ~1.3s animation. Fix: capture the ORIGINAL logical
+    // height exactly once (before any mutation) and reuse that stable value
+    // forever, never reading canvas.height back again.
+    if (!canvas.dataset.logicalHeight) {
+      canvas.dataset.logicalHeight = canvas.height || 200;
+    }
+    const h = parseFloat(canvas.dataset.logicalHeight);
     const rect = canvas.getBoundingClientRect();
     const w = rect.width || canvas.parentElement.clientWidth;
-    const h = canvas.height;
     canvas.width = w * dpr; canvas.height = h * dpr;
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
     const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);

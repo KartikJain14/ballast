@@ -46,22 +46,12 @@ REFERENCE_DATASETS = {
         "name": "Reference Dataset",
         "description": "The original one-year, 8,760-hour treasury dataset.",
     },
-    "growing": {
-        "path": ROOT / "data" / "synthetic_growing_bank.csv",
-        "name": "Growing Bank",
-        "description": "Same shape, deposits trending up ~40%/year instead of down.",
-    },
-    "volatile": {
-        "path": ROOT / "data" / "synthetic_volatile_bank.csv",
-        "name": "Volatile Bank",
-        "description": "Same average flow, ~2.5x the hour-to-hour noise.",
-    },
-    "bank_run": {
-        "path": ROOT / "data" / "synthetic_bank_run_aftermath.csv",
-        "name": "Bank-Run Aftermath",
-        "description": "An SVB-calibrated run baked into the middle of the year.",
-    },
 }
+# The synthetic variants (growing bank, volatile bank, bank-run aftermath) are
+# intentionally NOT pre-cached dataset-picker options -- they're meant to be
+# uploaded live through the dropzone during a demo, so the upload path itself
+# gets exercised in front of an audience. Their files still live in data/ and
+# `scripts/generate_synthetic.py` can regenerate or extend them.
 
 
 @app.get("/")
