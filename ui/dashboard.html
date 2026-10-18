@@ -75,39 +75,57 @@
   }
   .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
 
-  /* ---------- LOADER ---------- */
-  #loader { display: none; padding: 80px 0 60px; text-align: center; }
-  #loader-canvas-wrap { max-width: 640px; margin: 0 auto 56px; position: relative; }
-  #loader-canvas { width: 100%; height: 180px; display: block; }
-  .loader-caption { position: relative; height: 64px; }
-  .loader-stage-title {
-    position: absolute; inset: 0; font-family: var(--serif); font-size: 1.45rem; color: var(--ink);
-    opacity: 0; transform: translateY(8px); transition: opacity 0.7s ease, transform 0.7s ease;
+  .dataset-row { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 620px; margin: 0 auto; }
+  .dataset-card {
+    flex: 1; min-width: 180px; max-width: 220px; border: 1px solid var(--hairline-strong); padding: 20px 18px;
+    text-align: left; cursor: pointer; transition: border-color 0.25s ease, background 0.25s ease; position: relative;
   }
-  .loader-stage-title.show { opacity: 1; transform: translateY(0); }
-  .loader-subcopy {
-    height: 22px; position: relative; margin-top: 2px;
+  .dataset-card:hover { border-color: var(--gold); background: rgba(201,168,106,0.04); }
+  .dataset-card .dname { font-family: var(--serif); font-size: 1rem; color: var(--ink); margin-bottom: 6px; }
+  .dataset-card .ddesc { font-size: 0.74rem; color: var(--ink-faint); line-height: 1.5; }
+  .dataset-card .dbadge {
+    position: absolute; top: 14px; right: 14px; font-family: var(--mono); font-size: 0.6rem;
+    letter-spacing: 0.05em; color: var(--sage); opacity: 0; transition: opacity 0.3s;
   }
-  .loader-subcopy span {
-    position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap;
-    font-size: 0.82rem; color: var(--ink-faint); letter-spacing: 0.01em; opacity: 0;
-    transition: opacity 0.8s ease;
-  }
-  .loader-subcopy span.show { opacity: 1; }
+  .dataset-card.is-cached .dbadge { opacity: 1; }
+  .dataset-card.is-loading { opacity: 0.5; pointer-events: none; }
 
-  .progress-track { max-width: 460px; margin: 40px auto 0; height: 1px; background: var(--hairline); position: relative; }
+  /* ---------- STATUS STRIP (compact, sits above results while still computing) ---------- */
+  #status-strip {
+    display: none; position: relative; margin-bottom: 8px; padding-bottom: 28px;
+    border-bottom: 1px solid var(--hairline); overflow: hidden;
+  }
+  #status-strip.show { display: block; }
+  #loader-canvas { width: 100%; height: 64px; display: block; opacity: 0.8; }
+  .status-strip-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-top: 4px; }
+  .status-strip-text { font-family: var(--serif); font-size: 1.05rem; color: var(--ink); white-space: nowrap; }
+  .loader-subcopy {
+    display: inline-block; font-family: var(--sans); font-size: 0.78rem; color: var(--ink-faint);
+    margin-left: 14px; opacity: 0; transition: opacity 0.8s ease; vertical-align: middle;
+  }
+  .loader-subcopy.show { opacity: 1; }
+  .status-strip-progress { flex: 1; max-width: 220px; }
+  .progress-track { height: 1px; background: var(--hairline); position: relative; }
   .progress-fill { position: absolute; left: 0; top: 0; height: 1px; width: 0%; background: var(--gold); transition: width 0.8s cubic-bezier(.4,0,.2,1); }
-  .progress-glow {
-    position: absolute; top: -2.5px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
-    box-shadow: 0 0 10px 2px rgba(201,168,106,0.5); transition: left 0.8s cubic-bezier(.4,0,.2,1); left: 0%;
+
+  /* ---------- PENDING STATES (progressive reveal, not a blocking loader) ---------- */
+  .pending-slot { display: none; }
+  .section-pending .panel, .section-pending .kpi-row, .section-pending .takeaway,
+  .section-pending .status-row, .section-pending .raw-grid { opacity: 0; height: 0; overflow: hidden; }
+  .section-pending .pending-slot { display: block; }
+  #summary-card .pending-slot { display: block; }
+  .pending-note {
+    font-size: 0.82rem; color: var(--ink-faint); font-style: italic; padding: 18px 0;
+    position: relative;
   }
-  .stage-dots { display: flex; justify-content: space-between; max-width: 460px; margin: 14px auto 0; }
-  .stage-dots .d {
-    font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint);
-    transition: color 0.5s ease; text-align: center; flex: 1;
+  .pending-note::after {
+    content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--gold-dim); margin-left: 8px; animation: breathe 1.6s ease-in-out infinite;
   }
-  .stage-dots .d.active, .stage-dots .d.complete { color: var(--gold); }
-  .stage-dots .d.complete { color: var(--sage); }
+  @keyframes breathe { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+  .section-ready .pending-slot { display: none; }
+  .section-ready .panel, .section-ready .kpi-row, .section-ready .takeaway,
+  .section-ready .status-row, .section-ready .raw-grid { opacity: 1; height: auto; overflow: visible; transition: opacity 0.9s ease; }
 
   /* ---------- RESULTS ---------- */
   #results { display: none; }
@@ -129,6 +147,9 @@
 
   .two-col { display: grid; grid-template-columns: 1.35fr 1fr; gap: 56px; }
   @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; gap: 40px; } }
+
+  .raw-grid { display: grid; grid-template-columns: 0.85fr 1.3fr; gap: 56px; align-items: center; }
+  @media (max-width: 860px) { .raw-grid { grid-template-columns: 1fr; gap: 28px; } }
 
   .status-row { display: flex; flex-direction: column; gap: 0; margin-top: 20px; }
   .status-item {
@@ -194,37 +215,57 @@
       <div class="main-cta">Drop a CSV, or click to browse</div>
       <div class="sub-cta">HOURLY DEPOSIT / WITHDRAWAL / RATE DATA</div>
     </div>
-    <div class="or-divider">or</div>
-    <button class="btn primary" id="btn-sample">Analyze the Reference Dataset</button>
+    <div class="or-divider">or choose a dataset</div>
+    <div class="dataset-row" id="dataset-row"></div>
     <div id="error-banner"></div>
   </section>
 
-  <section id="loader">
-    <div id="loader-canvas-wrap"><canvas id="loader-canvas"></canvas></div>
-    <div class="loader-caption">
-      <div class="loader-stage-title" id="loader-stage-title">Validating data</div>
-    </div>
-    <div class="loader-subcopy" id="loader-subcopy"></div>
-    <div class="progress-track">
-      <div class="progress-fill" id="progress-fill"></div>
-      <div class="progress-glow" id="progress-glow"></div>
-    </div>
-    <div class="stage-dots" id="stage-dots"></div>
-  </section>
-
   <div id="results">
-    <section id="summary-section" class="reveal" style="margin-top:0;">
+    <div id="status-strip">
+      <canvas id="loader-canvas"></canvas>
+      <div class="status-strip-row">
+        <div class="status-strip-text">
+          <span id="loader-stage-title">Validating data</span>
+          <span class="loader-subcopy" id="loader-subcopy"></span>
+        </div>
+        <div class="status-strip-progress">
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <section id="raw-section" class="reveal section-pending" style="margin-top:0;">
+      <div class="raw-grid">
+        <div>
+          <div class="eyebrow">Your Data, At a Glance</div>
+          <h2 class="section-title">Deposits and withdrawals, hour by hour</h2>
+          <p class="section-sub" id="raw-sub" style="margin-bottom:0;">This is the data exactly as provided, before any
+             strategy is applied — worth a look while the strategies below are computed.</p>
+        </div>
+        <div class="panel">
+          <canvas id="chart-raw" height="200"></canvas>
+          <div class="legend-row">
+            <span><span class="legend-mark" style="background:var(--sage)"></span>Deposits</span>
+            <span><span class="legend-mark" style="background:var(--terracotta)"></span>Withdrawals</span>
+          </div>
+        </div>
+      </div>
+      <div class="pending-slot pending-note">Reading the uploaded file…</div>
+    </section>
+
+    <section id="summary-section" class="reveal section-pending">
       <div class="eyebrow">Executive Summary</div>
       <div id="summary-card">
-        <div id="summary-text"><span class="skeleton-line"></span></div>
+        <div id="summary-text" class="pending-slot"><span class="skeleton-line"></span><span class="skeleton-line" style="width:70%; margin-top:8px;"></span></div>
       </div>
     </section>
 
-    <section id="kpi-section" class="reveal">
+    <section id="kpi-section" class="reveal section-pending">
       <div class="kpi-row" id="kpi-row"></div>
+      <div class="pending-slot pending-note">Running strategy simulations…</div>
     </section>
 
-    <section id="flow-section" class="reveal">
+    <section id="flow-section" class="reveal section-pending">
       <div class="eyebrow">Cash Position</div>
       <h2 class="section-title">The trajectory of the book</h2>
       <p class="section-sub" id="flow-sub"></p>
@@ -234,17 +275,19 @@
           <span><span class="legend-mark" style="background:var(--gold)"></span>Cumulative net flow</span>
         </div>
       </div>
+      <div class="pending-slot pending-note">Reading deposit and withdrawal history…</div>
     </section>
 
-    <section id="dow-section" class="reveal">
+    <section id="dow-section" class="reveal section-pending">
       <div class="eyebrow">Overnight Risk</div>
       <h2 class="section-title">Not every night carries the same risk</h2>
       <p class="section-sub">Worst-case cash drain for every overnight window in the period, grouped by day of week.</p>
       <div class="panel"><canvas id="chart-dow" height="220"></canvas></div>
       <div class="takeaway" id="dow-takeaway"></div>
+      <div class="pending-slot pending-note">Measuring overnight path-max risk…</div>
     </section>
 
-    <section id="spike-section" class="reveal">
+    <section id="spike-section" class="reveal section-pending">
       <div class="eyebrow">Anomaly Detection</div>
       <h2 class="section-title">Spikes and depressions, explained</h2>
       <p class="section-sub">The largest single-hour flow events, classified from calendar position alone —
@@ -256,18 +299,20 @@
           <div id="cause-bars"></div>
         </div>
       </div>
+      <div class="pending-slot pending-note">Scanning for unusual flow events…</div>
     </section>
 
-    <section id="score-section" class="reveal">
+    <section id="score-section" class="reveal section-pending">
       <div class="eyebrow">Strategy Comparison</div>
       <h2 class="section-title">Five approaches, one book</h2>
       <p class="section-sub">Total cost of liquidity for the full period — foregone interest plus every fee, haircut,
          and penalty paid. Lower is superior.</p>
       <div class="panel"><canvas id="chart-score" height="240"></canvas></div>
       <div class="takeaway" id="score-takeaway"></div>
+      <div class="pending-slot pending-note">Comparing five independent strategies…</div>
     </section>
 
-    <section id="regret-section" class="reveal">
+    <section id="regret-section" class="reveal section-pending">
       <div class="eyebrow">Attribution</div>
       <h2 class="section-title">The remaining distance to optimal</h2>
       <div class="two-col">
@@ -278,14 +323,16 @@
           <div class="delta">No strategy — including a perfect forecaster — resolves these. A capital question, not a strategy one.</div>
         </div>
       </div>
+      <div class="pending-slot pending-note">Attributing the gap to the theoretical best case…</div>
     </section>
 
-    <section id="stress-section" class="reveal">
+    <section id="stress-section" class="reveal section-pending">
       <div class="eyebrow">Stress Testing</div>
       <h2 class="section-title">Behavior under duress</h2>
       <p class="section-sub">Each scenario replays the period with a shock applied against a finite emergency credit
          facility, calibrated so the unshocked period survives — any failure below is attributable to the shock itself.</p>
       <div class="status-row" id="stress-pills"></div>
+      <div class="pending-slot pending-note">Applying stress scenarios…</div>
     </section>
   </div>
 
@@ -320,16 +367,8 @@
     ['stress', 'Applying stress scenarios', ['Simulating a bank-run style shock', 'Simulating a holiday demand surge', 'Checking the funding waterfall']],
     ['done', 'Finalizing the report', ['Assembling the figures']],
   ];
-  const dotsWrap = $('#stage-dots');
-  STAGES.forEach(([key,label]) => {
-    const d = document.createElement('div'); d.className = 'd'; d.dataset.key = key; d.textContent = label;
-    dotsWrap.appendChild(d);
-  });
-
   let currentStageKey = null, subcopyTimer = null, subcopyIdx = 0;
-  const subcopyEl = $('#loader-subcopy');
-  subcopyEl.innerHTML = '<span></span>';
-  const subcopySpan = subcopyEl.querySelector('span');
+  const subcopySpan = $('#loader-subcopy');
   function cycleSubcopy(lines) {
     clearInterval(subcopyTimer);
     subcopyIdx = 0;
@@ -345,20 +384,10 @@
 
   function setStage(stageKey, percent) {
     $('#progress-fill').style.width = percent + '%';
-    $('#progress-glow').style.left = percent + '%';
-    let reached = true;
-    STAGES.forEach(([key]) => {
-      const el = dotsWrap.querySelector(`[data-key="${key}"]`);
-      if (key === stageKey) { el.classList.add('active'); el.classList.remove('complete'); reached = false; }
-      else if (reached) { el.classList.add('complete'); el.classList.remove('active'); }
-      else { el.classList.remove('active','complete'); }
-    });
     if (stageKey !== currentStageKey) {
       currentStageKey = stageKey;
       const stage = STAGES.find(s => s[0] === stageKey);
-      const titleEl = $('#loader-stage-title');
-      titleEl.classList.remove('show');
-      setTimeout(() => { titleEl.textContent = stage ? stage[1] : ''; titleEl.classList.add('show'); }, 350);
+      $('#loader-stage-title').textContent = stage ? stage[1] : '';
       if (stage) cycleSubcopy(stage[2]);
     }
   }
@@ -380,9 +409,9 @@
       { amp: 12, freq: 0.027, speed: 0.018, phase: 1.7, color: 'rgba(236,233,228,0.18)', width: 1 },
       { amp: 8,  freq: 0.04,  speed: 0.009, phase: 3.1, color: 'rgba(138,166,141,0.3)', width: 1 },
     ];
-    const loaderEl = document.getElementById('loader');
+    const stripEl = document.getElementById('status-strip');
     function draw(){
-      if (loaderEl.style.display === 'none' || loaderEl.offsetParent === null) {
+      if (!stripEl.classList.contains('show') || stripEl.offsetParent === null) {
         requestAnimationFrame(draw); return; // paused but keeps checking, cheap no-op while hidden
       }
       ctx.clearRect(0,0,w,h);
@@ -401,23 +430,29 @@
     draw();
   })();
 
-  function showError(msg) { const b = $('#error-banner'); b.textContent = msg; b.style.display = 'block'; }
-
-  async function pollJob(jobId) {
-    while (true) {
-      const r = await fetch(`/api/status/${jobId}`);
-      const s = await r.json();
-      setStage(s.stage, s.percent);
-      if (s.status === 'done') return true;
-      if (s.status === 'error') { showError('Analysis failed: ' + (s.error || 'unknown error')); return false; }
-      await new Promise(res => setTimeout(res, 450));
-    }
+  function showError(msg) {
+    $('#landing').style.display = 'block';
+    $('#results').style.display = 'none';
+    const b = $('#error-banner'); b.textContent = msg; b.style.display = 'block';
   }
+
+  function markReady(sectionId) {
+    const el = $(sectionId);
+    el.classList.remove('section-pending'); el.classList.add('section-ready', 'in');
+  }
+
+  const rendered = { flows: false, risk: false, scoreboard: false, regret: false, stress: false };
 
   async function runJob(fetchPromise) {
     $('#landing').style.display = 'none';
-    $('#loader').style.display = 'block';
     $('#error-banner').style.display = 'none';
+    Object.keys(rendered).forEach(k => rendered[k] = false);
+    ['#summary-section','#kpi-section','#flow-section','#dow-section','#spike-section','#score-section','#regret-section','#stress-section']
+      .forEach(id => { const el = $(id); el.classList.add('section-pending'); el.classList.remove('section-ready'); });
+    $('#results').style.display = 'block';
+    $('#status-strip').classList.add('show');
+    currentStageKey = null;
+
     try {
       const resp = await fetchPromise;
       if (!resp.ok) {
@@ -425,28 +460,55 @@
         throw new Error(body.detail || resp.statusText);
       }
       const { job_id } = await resp.json();
-      const ok = await pollJob(job_id);
-      if (!ok) { $('#loader').style.display = 'none'; $('#landing').style.display = 'block'; return; }
-      const res = await fetch(`/api/results/${job_id}`);
-      const data = await res.json();
-      renderAll(data);
-      $('#loader').style.display = 'none';
-      $('#results').style.display = 'block';
+
+      while (true) {
+        const r = await fetch(`/api/results/${job_id}`);
+        const d = await r.json();
+        setStage(d.stage, d.percent);
+
+        if (d.flows && !rendered.flows) { rendered.flows = true; renderRaw(d.flows); renderFlows(d.flows); markReady('#raw-section'); markReady('#flow-section'); markReady('#spike-section'); }
+        if (d.risk && !rendered.risk) { rendered.risk = true; renderRisk(d.risk); markReady('#dow-section'); }
+        if (d.scoreboard && !rendered.scoreboard) { rendered.scoreboard = true; renderScoreboard(d.scoreboard); markReady('#kpi-section'); markReady('#score-section'); }
+        if (d.regret && !rendered.regret) { rendered.regret = true; renderRegret(d.regret); markReady('#regret-section'); }
+        if (d.stress && !rendered.stress) { rendered.stress = true; renderStress(d.stress); markReady('#stress-section'); }
+
+        if (d.status === 'error') { throw new Error('Analysis failed: ' + (d.error || 'unknown error')); }
+        if (d.status === 'done') break;
+        await new Promise(res => setTimeout(res, 500));
+      }
+
+      $('#status-strip').classList.remove('show');
       $('#btn-reset').style.display = 'inline-block';
       $('#btn-upload-top').style.display = 'inline-block';
-      requestAnimationFrame(() => observeReveals());
+
       fetch(`/api/summarize/${job_id}`).then(r => r.json()).then(s => {
         $('#summary-text').innerHTML = s.text.replace(/\n/g,'<br/>') +
           `<span class="summary-badge">${s.source === 'gemini' ? 'Generated from the figures above' : 'Summary derived from the figures above'}</span>`;
-      }).catch(() => { $('#summary-text').textContent = ''; $('#summary-section').style.display='none'; });
+        markReady('#summary-section');
+      }).catch(() => { $('#summary-section').style.display='none'; });
     } catch (e) {
-      $('#loader').style.display = 'none';
-      $('#landing').style.display = 'block';
+      $('#status-strip').classList.remove('show');
       showError(e.message || String(e));
     }
   }
 
-  $('#btn-sample').addEventListener('click', () => { runJob(fetch('/api/run-sample', { method: 'POST' })); });
+  function loadDatasetRow() {
+    fetch('/api/datasets').then(r => r.json()).then(datasets => {
+      const row = $('#dataset-row'); row.innerHTML = '';
+      datasets.filter(d => d.available).forEach(ds => {
+        const card = document.createElement('div');
+        card.className = 'dataset-card' + (ds.cached ? ' is-cached' : '');
+        card.innerHTML = `<span class="dbadge">READY</span>
+          <div class="dname">${ds.name}</div><div class="ddesc">${ds.description}</div>`;
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.dataset-card').forEach(c => c.classList.add('is-loading'));
+          runJob(fetch(`/api/run-dataset/${ds.key}`, { method: 'POST' }));
+        });
+        row.appendChild(card);
+      });
+    }).catch(() => {});
+  }
+  loadDatasetRow();
 
   function uploadFile(file) {
     const form = new FormData(); form.append('file', file);
@@ -466,6 +528,7 @@
     $('#btn-reset').style.display = 'none';
     $('#btn-upload-top').style.display = 'none';
     $('#landing').style.display = 'block';
+    loadDatasetRow();
   });
 
   function countUp(el, target, prefix='', suffix='', dp=0) {
@@ -590,8 +653,44 @@
     'Month-end outflow': COLORS.terracotta, 'Month-end inflow': COLORS.ink, 'Unclassified anomaly': COLORS.inkFaint,
   };
 
-  function renderAll(d) {
-    const sb = d.scoreboard;
+  function renderFlows(flows) {
+    $('#flow-sub').textContent = flows.cumulative_net_flow_final < 0
+      ? `Cumulative net flow declined to ${fmtUsd(flows.cumulative_net_flow_final)} over the period — this book is contracting faster than any sweep strategy can offset.`
+      : `Cumulative net flow grew to ${fmtUsd(flows.cumulative_net_flow_final)} over the period.`;
+    animateChart((p) => drawAreaLine($('#chart-flow'), [
+      { data: flows.daily_cum_net, color: COLORS.gold, fill: true, width: 1.4 },
+    ], { progress: p }));
+
+    const spikes = flows.spikes;
+    const points = spikes.map(s => ({ x: new Date(s.ts).getTime(), y: s.net_flow, color: CAUSE_COLORS[s.label] || COLORS.inkFaint }));
+    animateChart((p) => drawScatter($('#chart-spikes'), points, { progress: p }));
+    const causeBars = $('#cause-bars'); causeBars.innerHTML = '';
+    const causeEntries = Object.entries(flows.spike_cause_counts).sort((a,b)=>b[1]-a[1]);
+    const maxCause = Math.max(...causeEntries.map(e=>e[1]));
+    causeEntries.forEach(([label,count]) => {
+      const row = document.createElement('div'); row.className = 'cause-row';
+      row.innerHTML = `<span class="cause-label">${label}</span>
+        <div class="cause-track"><div class="cause-fill" style="background:${CAUSE_COLORS[label]||COLORS.inkFaint}"></div></div>
+        <span class="cause-count num">${count}</span>`;
+      causeBars.appendChild(row);
+      requestAnimationFrame(() => row.querySelector('.cause-fill').style.width = (count/maxCause*100)+'%');
+    });
+  }
+
+  function renderRisk(risk) {
+    const dowNames = Object.keys(risk.by_dow);
+    const dowVals = dowNames.map(n => risk.by_dow[n].mean);
+    const dowColors = dowNames.map(n => (n==='Fri'||n==='Sat') ? COLORS.gold : COLORS.inkFaint);
+    animateChart((p) => drawBars($('#chart-dow'), dowNames, dowVals, { progress: p, colors: dowColors, showVal: true }));
+    const maxDowName = dowNames[dowVals.indexOf(Math.max(...dowVals))];
+    const minDowName = dowNames[dowVals.indexOf(Math.min(...dowVals))];
+    $('#dow-takeaway').innerHTML = `<strong>${maxDowName}</strong> nights carry the greatest overnight risk
+      (${fmtUsd(Math.max(...dowVals))} average worst case) — roughly
+      ${(Math.max(...dowVals)/Math.min(...dowVals)).toFixed(1)}&times; the risk of <strong>${minDowName}</strong> nights.
+      A uniform cash cushion is therefore structurally wrong.`;
+  }
+
+  function renderScoreboard(sb) {
     const names = Object.keys(sb);
     const ballast = sb['ballast'];
     // "Deployable" excludes only the theoretical, non-deployable oracle -- this is
@@ -600,8 +699,8 @@
     const bestDeployable = names.filter(n=>n!=='oracle').reduce((a,b)=> sb[a].total_cost_of_liquidity < sb[b].total_cost_of_liquidity ? a : b);
     // "Naive" additionally excludes Ballast itself -- used only for the "Ballast vs.
     // the best alternative" comparison, where comparing Ballast to itself is meaningless.
-    const bestNaive = names.filter(n=>n!=='oracle' && n!=='ballast').reduce((a,b)=> sb[a].total_cost_of_liquidity < sb[b].total_cost_of_liquidity ? a : b);
-    const best = bestNaive; // retained name for the takeaway text below
+    const best = names.filter(n=>n!=='oracle' && n!=='ballast').reduce((a,b)=> sb[a].total_cost_of_liquidity < sb[b].total_cost_of_liquidity ? a : b);
+
     const kpiRow = $('#kpi-row'); kpiRow.innerHTML = '';
     const kpis = [
       { label: 'NET INTEREST EARNED', value: ballast.net_interest_earned, cls:'accent', prefix:'$' },
@@ -617,39 +716,6 @@
       if (k.value !== null) countUp(document.getElementById(valId), k.value, k.prefix||'', k.suffix||'', k.dp||0);
     });
 
-    $('#flow-sub').textContent = d.flows.cumulative_net_flow_final < 0
-      ? `Cumulative net flow declined to ${fmtUsd(d.flows.cumulative_net_flow_final)} over the period — this book is contracting faster than any sweep strategy can offset.`
-      : `Cumulative net flow grew to ${fmtUsd(d.flows.cumulative_net_flow_final)} over the period.`;
-    animateChart((p) => drawAreaLine($('#chart-flow'), [
-      { data: d.flows.daily_cum_net, color: COLORS.gold, fill: true, width: 1.4 },
-    ], { progress: p }));
-
-    const dowNames = Object.keys(d.risk.by_dow);
-    const dowVals = dowNames.map(n => d.risk.by_dow[n].mean);
-    const dowColors = dowNames.map(n => (n==='Fri'||n==='Sat') ? COLORS.gold : COLORS.inkFaint);
-    animateChart((p) => drawBars($('#chart-dow'), dowNames, dowVals, { progress: p, colors: dowColors, showVal: true }));
-    const maxDowName = dowNames[dowVals.indexOf(Math.max(...dowVals))];
-    const minDowName = dowNames[dowVals.indexOf(Math.min(...dowVals))];
-    $('#dow-takeaway').innerHTML = `<strong>${maxDowName}</strong> nights carry the greatest overnight risk
-      (${fmtUsd(Math.max(...dowVals))} average worst case) — roughly
-      ${(Math.max(...dowVals)/Math.min(...dowVals)).toFixed(1)}&times; the risk of <strong>${minDowName}</strong> nights.
-      A uniform cash cushion is therefore structurally wrong.`;
-
-    const spikes = d.flows.spikes;
-    const points = spikes.map(s => ({ x: new Date(s.ts).getTime(), y: s.net_flow, color: CAUSE_COLORS[s.label] || COLORS.inkFaint }));
-    animateChart((p) => drawScatter($('#chart-spikes'), points, { progress: p }));
-    const causeBars = $('#cause-bars'); causeBars.innerHTML = '';
-    const causeEntries = Object.entries(d.flows.spike_cause_counts).sort((a,b)=>b[1]-a[1]);
-    const maxCause = Math.max(...causeEntries.map(e=>e[1]));
-    causeEntries.forEach(([label,count]) => {
-      const row = document.createElement('div'); row.className = 'cause-row';
-      row.innerHTML = `<span class="cause-label">${label}</span>
-        <div class="cause-track"><div class="cause-fill" style="background:${CAUSE_COLORS[label]||COLORS.inkFaint}"></div></div>
-        <span class="cause-count num">${count}</span>`;
-      causeBars.appendChild(row);
-      requestAnimationFrame(() => row.querySelector('.cause-fill').style.width = (count/maxCause*100)+'%');
-    });
-
     const scoreLabels = names.map(n => n.replace(/_/g,' '));
     const scoreVals = names.map(n => sb[n].total_cost_of_liquidity);
     const scoreColors = names.map(n => n==='ballast' ? COLORS.gold : (n==='oracle' ? COLORS.sage : COLORS.inkFaint));
@@ -661,16 +727,19 @@
          that actively sweep is naturally narrow.`
       : `The strategy <strong>${best}</strong> edges out Ballast by ${fmtUsd(-improvement)} on this run — see the
          attribution below for why.`;
+  }
 
-    const rg = d.regret;
+  function renderRegret(rg) {
     animateChart((p) => drawBars($('#chart-regret'),
       ['Conservatism','Forecast error','Total'],
       [rg.policy_conservatism_cost, rg.forecast_error_cost, rg.total_regret],
       { progress: p, colors: [COLORS.inkFaint, COLORS.terracotta, COLORS.gold], showVal: true }));
     countUp($('#regret-capital'), rg.n_capital_constrained_nights, '', ` / ${rg.n_nights}`);
+  }
 
+  function renderStress(stress) {
     const pillRow = $('#stress-pills'); pillRow.innerHTML = '';
-    Object.entries(d.stress).forEach(([name, r]) => {
+    Object.entries(stress).forEach(([name, r]) => {
       const row = document.createElement('div'); row.className = 'status-item';
       row.innerHTML = `<span class="name">${name.replace(/_/g,' ')}</span>
         <span class="state ${r.survived ? 'ok' : 'fail'}">${r.survived ? 'SURVIVED' : 'FAILED — ' + (r.survival_timestamp||'')}</span>`;
@@ -678,12 +747,6 @@
     });
   }
 
-  function observeReveals() {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
-    }, { threshold: 0.12 });
-    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
-  }
 })();
 </script>
 </body>

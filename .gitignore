@@ -13,3 +13,4 @@ reports/audit_stderr.txt
 .venv/
 venv/
 .env
+reports/app_*.txt

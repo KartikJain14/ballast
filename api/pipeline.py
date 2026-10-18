@@ -18,7 +18,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from engine.data import load_raw, validate  # noqa: E402
+from engine.data import load_raw, validate, DEFAULT_CSV_PATH  # noqa: E402
 from engine.config import EngineConfig  # noqa: E402
 from engine.simulator.engine import Simulator  # noqa: E402
 from engine.policy.baselines import AllCashPolicy, StaticBufferPolicy, MovingAverageKSigmaPolicy  # noqa: E402
@@ -130,12 +130,25 @@ def run_pipeline(csv_path: Path, job: dict):
 
         _set(job, "sim", 40)
         cfg = EngineConfig.full_4tier()
-        # Scale opening capital to the uploaded dataset's OWN empirical worst-case
-        # overnight risk (M), not a hardcoded $2B -- a 40x margin over the single
-        # worst observed night keeps the book solvent without over-capitalizing
-        # to the point where no policy difference is visible (the same reasoning
-        # as docs/DECISIONS.md D6d, generalized to work for any uploaded dataset).
-        capital = float(nights["M"].max()) * 40
+        try:
+            is_bundled_sample = Path(csv_path).resolve() == DEFAULT_CSV_PATH.resolve()
+        except OSError:
+            is_bundled_sample = False
+        if is_bundled_sample:
+            # Use the SAME $2B figure documented in docs/DECISIONS.md D6d for the
+            # bundled sample -- it was arrived at deliberately (large enough that
+            # policy quality, not capital adequacy, drives the scoreboard, while
+            # still leaving the book under real pressure by year-end) and the
+            # live dashboard's numbers must match docs/RESULTS.md for the SAME
+            # dataset, or they'd look inconsistent/wrong when compared side by side.
+            capital = cfg.assumptions.opening_cash_usd  # EngineConfig default: $2,000,000,000
+        else:
+            # For an arbitrary uploaded dataset we have no such pre-derived figure,
+            # so scale capital to the dataset's OWN empirical worst-case overnight
+            # risk (M): a 40x margin over the single worst observed night keeps the
+            # book solvent without over-capitalizing to the point where no policy
+            # difference is visible (same reasoning as D6d, generalized).
+            capital = float(nights["M"].max()) * 40
         cfg.assumptions.opening_cash_usd = capital
         cfg.assumptions.deposit_base_usd = capital
         sim = Simulator(df, cfg)
