@@ -12,3 +12,4 @@ reports/audit_stderr.txt
 *.duckdb
 .venv/
 venv/
+.env

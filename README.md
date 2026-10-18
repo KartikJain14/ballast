@@ -23,9 +23,15 @@ make test         # 52 tests: no-look-ahead, ledger reconciliation, oracle corre
 make audit        # regenerates docs/DATA_AUDIT.md's numbers -> reports/audit_numbers.json
 make replay       # full-year scoreboard for all policies -> docs/RESULTS.md
 make precompute   # bakes the dashboard cache -> reports/dashboard_cache.json
-make ui           # streamlit run ui/app.py  (the technical console)
-make demo         # test + audit + replay + precompute + launch the UI, one command
+make app          # the primary experience: upload a CSV (or analyze the sample) and watch it compute live
+make ui           # streamlit run ui/app.py  (secondary technical console with more raw detail)
+make demo         # test + audit + replay + precompute + launch the primary app, one command
 ```
+
+`make app` serves a single page at `http://localhost:8000` — drop in your own hourly CSV or click
+"Analyze the Reference Dataset." Every chart, KPI, and the AI executive summary (optional —
+falls back to a deterministic template if no `GEMINI_API_KEY` is set in a local `.env`,
+never required) is computed live from whatever data you give it, not the bundled sample alone.
 
 **On a stock Windows install** (`make` is not on PATH by default — unlike
 every Unix/macOS system), use the identical cross-platform runner instead —

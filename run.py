@@ -27,8 +27,9 @@ TARGETS = {
     "replay": [[sys.executable, "scripts/replay.py"]],
     "precompute": [[sys.executable, "scripts/precompute.py"]],
     "ui": [[sys.executable, "-m", "streamlit", "run", "ui/app.py"]],
+    "app": [[sys.executable, "-m", "uvicorn", "api.main:app", "--port", "8000"]],
 }
-TARGETS["demo"] = TARGETS["test"] + TARGETS["audit"] + TARGETS["replay"] + TARGETS["precompute"] + TARGETS["ui"]
+TARGETS["demo"] = TARGETS["test"] + TARGETS["audit"] + TARGETS["replay"] + TARGETS["precompute"] + TARGETS["app"]
 
 
 def main():

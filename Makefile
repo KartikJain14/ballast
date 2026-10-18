@@ -21,5 +21,8 @@ api:
 ui:
 	streamlit run ui/app.py
 
+app:
+	uvicorn api.main:app --port 8000
+
 demo: test audit replay precompute
-	streamlit run ui/app.py
+	uvicorn api.main:app --port 8000
