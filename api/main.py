@@ -22,14 +22,14 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from api.pipeline import run_pipeline  # noqa: E402
-from api.ai_summary import generate_summary  # noqa: E402
+from api.ai_summary import generate_summary, generate_summary_stream  # noqa: E402
 from engine.data import RAW_COLUMNS, DEFAULT_CSV_PATH  # noqa: E402
 
 app = FastAPI(title="Ballast API")
@@ -249,3 +249,22 @@ def summarize(job_id: str):
         "regret": job["regret"], "stress": job["stress"],
     }
     return generate_summary(data)
+
+
+@app.get("/api/summarize-stream/{job_id}")
+def summarize_stream(job_id: str):
+    """Chunked plain-text stream for the frontend's progressive reveal effect.
+    Deliberately a synchronous (not async def) endpoint -- it uses a blocking
+    generator (real Gemini SSE reads, or a paced template fallback), and
+    FastAPI runs sync path operations in a worker thread automatically, so
+    this doesn't block the event loop."""
+    job = JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(404, "Unknown job id.")
+    if job.get("status") != "done":
+        raise HTTPException(409, "Job not finished yet.")
+    data = {
+        "scoreboard": job["scoreboard"], "risk": job["risk"],
+        "regret": job["regret"], "stress": job["stress"],
+    }
+    return StreamingResponse(generate_summary_stream(data), media_type="text/plain")

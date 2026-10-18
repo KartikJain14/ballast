@@ -89,6 +89,9 @@
   }
   .dataset-card.is-cached .dbadge { opacity: 1; }
   .dataset-card.is-loading { opacity: 0.5; pointer-events: none; }
+  .dataset-loading { font-size: 0.82rem; color: var(--ink-faint); font-style: italic; padding: 10px 0; }
+  .dataset-loading.error { color: var(--terracotta); font-style: normal; }
+  .dataset-loading.error a { color: var(--gold); text-decoration: underline; font-style: normal; }
 
   /* ---------- STATUS STRIP (compact, sits above results while still computing) ---------- */
   #status-strip {
@@ -538,21 +541,110 @@
       $('#btn-reset').style.display = 'inline-block';
       $('#btn-upload-top').style.display = 'inline-block';
 
-      fetch(`/api/summarize/${job_id}`).then(r => r.json()).then(s => {
-        $('#summary-text').innerHTML = s.text.replace(/\n/g,'<br/>') +
-          `<span class="summary-badge">${s.source === 'gemini' ? 'Generated from the figures above' : 'Summary derived from the figures above'}</span>`;
-        markReady('#summary-section');
-      }).catch(() => { $('#summary-section').style.display='none'; });
+      markReady('#summary-section');
+      streamSummary(job_id);
     } catch (e) {
       $('#status-strip').classList.remove('show');
       showError(e.message || String(e));
     }
   }
 
+  // ---------------- "SAND FORMING" TEXT REVEAL ----------------
+  // Each incoming character starts as noise and resolves to its real value on
+  // a staggered timer, so text reads as assembling itself rather than just
+  // appearing -- driven by REAL chunk arrivals from the streaming endpoint,
+  // not a fake timer animating static text.
+  function createSandRenderer(el) {
+    const SCRAMBLE = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const chars = [];
+    let rafId = null, streamDone = false;
+    const esc = (c) => c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c;
+
+    function appendText(text) {
+      const now = performance.now();
+      let delay = 0;
+      for (const ch of text) {
+        const isSpace = ch === ' ' || ch === '\n';
+        chars.push({
+          final: ch, resolved: isSpace,
+          start: now + delay, dur: 180 + Math.random() * 220,
+        });
+        if (!isSpace) delay += 4; // gentle left-to-right cascade within a chunk
+      }
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    }
+
+    function tick(now) {
+      let html = '';
+      let allResolved = true;
+      for (const c of chars) {
+        if (c.resolved) { html += esc(c.final) === '\n' ? '<br/>' : esc(c.final); continue; }
+        if (now < c.start) { allResolved = false; html += '&nbsp;'; continue; }
+        if (now - c.start >= c.dur) { c.resolved = true; html += esc(c.final); continue; }
+        allResolved = false;
+        html += esc(SCRAMBLE[(Math.random() * SCRAMBLE.length) | 0]);
+      }
+      el.innerHTML = html;
+      if (!allResolved || !streamDone) { rafId = requestAnimationFrame(tick); }
+      else { rafId = null; }
+    }
+
+    function finish() { streamDone = true; if (!rafId) rafId = requestAnimationFrame(tick); }
+    return { appendText, finish };
+  }
+
+  async function streamSummary(jobId) {
+    const el = $('#summary-text');
+    el.innerHTML = '';
+    const sand = createSandRenderer(el);
+    let source = 'template';
+    try {
+      const resp = await fetch(`/api/summarize-stream/${jobId}`);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // hold back any partial trailing marker until we're sure it's not __SOURCE__
+        const markerIdx = buffer.indexOf('\n__SOURCE__:');
+        if (markerIdx === -1) {
+          sand.appendText(buffer);
+          buffer = '';
+        } else {
+          sand.appendText(buffer.slice(0, markerIdx));
+          source = buffer.slice(markerIdx + '\n__SOURCE__:'.length).trim() || source;
+          buffer = '';
+        }
+      }
+    } catch (e) {
+      sand.appendText('Summary unavailable for this run.');
+    } finally {
+      sand.finish();
+      setTimeout(() => {
+        const badge = document.createElement('span');
+        badge.className = 'summary-badge';
+        badge.textContent = source === 'gemini' ? 'Generated from the figures above' : 'Summary derived from the figures above';
+        el.appendChild(badge);
+      }, 500);
+    }
+  }
+
   function loadDatasetRow() {
-    fetch('/api/datasets').then(r => r.json()).then(datasets => {
-      const row = $('#dataset-row'); row.innerHTML = '';
-      datasets.filter(d => d.available).forEach(ds => {
+    const row = $('#dataset-row');
+    row.innerHTML = '<div class="dataset-loading">Checking available datasets…</div>';
+    fetch('/api/datasets').then(r => {
+      if (!r.ok) throw new Error('Server returned ' + r.status);
+      return r.json();
+    }).then(datasets => {
+      row.innerHTML = '';
+      const avail = datasets.filter(d => d.available);
+      if (avail.length === 0) {
+        row.innerHTML = '<div class="dataset-loading">No reference datasets found on the server.</div>';
+        return;
+      }
+      avail.forEach(ds => {
         const card = document.createElement('div');
         card.className = 'dataset-card' + (ds.cached ? ' is-cached' : '');
         card.innerHTML = `<span class="dbadge">READY</span>
@@ -563,8 +655,12 @@
         });
         row.appendChild(card);
       });
-    }).catch(() => {});
+    }).catch((e) => {
+      row.innerHTML = `<div class="dataset-loading error">Could not reach the server (${e.message}). ` +
+        `Is it running? <a href="javascript:void(0)" onclick="loadDatasetRow()">Retry</a></div>`;
+    });
   }
+  window.loadDatasetRow = loadDatasetRow;
   loadDatasetRow();
 
   $('#btn-depth-toggle').addEventListener('click', () => {
@@ -577,6 +673,46 @@
   function uploadFile(file) {
     const form = new FormData(); form.append('file', file);
     runJob(fetch('/api/upload', { method: 'POST', body: form }));
+    quickClientPreview(file); // instant, no backend/analysis needed -- see function below
+  }
+
+  async function quickClientPreview(file) {
+    // Parses just timestamp/deposits_usd/withdrawals_usd client-side, entirely
+    // locally, so the raw chart appears the moment a file is chosen -- no
+    // network round-trip, no waiting on the simulator. The backend's own
+    // `flows` data (same chart, slightly more precise) arrives ~2-3s later
+    // via the normal pipeline and simply redraws over this.
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(l => l.length);
+      if (lines.length < 2) return;
+      const header = lines[0].split(',');
+      const tsIdx = header.indexOf('timestamp');
+      const depIdx = header.indexOf('deposits_usd');
+      const wdIdx = header.indexOf('withdrawals_usd');
+      if (tsIdx < 0 || depIdx < 0 || wdIdx < 0) return;
+      const daily = new Map();
+      let outflowHours = 0, totalHours = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length <= Math.max(tsIdx, depIdx, wdIdx)) continue;
+        const day = parts[tsIdx].slice(0, 10);
+        const dep = parseFloat(parts[depIdx]) || 0;
+        const wd = parseFloat(parts[wdIdx]) || 0;
+        if (!daily.has(day)) daily.set(day, { dep: 0, wd: 0 });
+        const d = daily.get(day); d.dep += dep; d.wd += wd;
+        totalHours++; if (wd > dep) outflowHours++;
+      }
+      const days = Array.from(daily.keys()).sort();
+      if (days.length < 2) return;
+      renderRaw({
+        daily_timestamps: days.map(d => d + 'T00:00:00'),
+        daily_deposits: days.map(d => daily.get(d).dep),
+        daily_withdrawals: days.map(d => daily.get(d).wd),
+        pct_hours_net_outflow: totalHours ? (outflowHours / totalHours * 100) : 0,
+      });
+      markReady('#raw-section');
+    } catch (e) { /* silent -- the backend will render this section shortly regardless */ }
   }
 
   const dz = $('#dropzone');

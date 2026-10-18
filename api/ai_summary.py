@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.request
-import urllib.error
 from pathlib import Path
+
+import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 MODEL = "gemini-flash-latest"
@@ -36,32 +38,10 @@ def _load_dotenv():
 _load_dotenv()
 
 
-def _template_summary(data: dict) -> str:
+def _facts_and_prompt(data: dict) -> tuple[dict, str]:
     sb = data["scoreboard"]
     ballast = sb["ballast"]
     best_naive = min((n for n in sb if n not in ("oracle", "ballast")), key=lambda n: sb[n]["total_cost_of_liquidity"])
-    improvement = sb[best_naive]["total_cost_of_liquidity"] - ballast["total_cost_of_liquidity"]
-    n_defaults = sum(1 for r in data["stress"].values() if not r["survived"])
-    return (
-        f"Over the analyzed period, Ballast earned ${ballast['net_interest_earned']:,.0f} in interest while "
-        f"keeping every customer payout funded. Compared to the best alternative strategy tested, it "
-        f"{'saved' if improvement >= 0 else 'cost'} ${abs(improvement):,.0f} in total liquidity costs. "
-        f"The data shows {data['risk']['n_nights']} overnight windows with highly uneven risk — some nights "
-        f"carry far more cash-drain risk than others, which is why a single fixed cash cushion is the wrong "
-        f"approach. Under stress testing, {n_defaults} of {len(data['stress'])} simulated shock scenarios "
-        f"would have exhausted the funding waterfall, underscoring the importance of active liquidity management."
-    )
-
-
-def generate_summary(data: dict) -> dict:
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        return {"text": _template_summary(data), "source": "template"}
-
-    sb = data["scoreboard"]
-    ballast = sb["ballast"]
-    best_naive = min((n for n in sb if n not in ("oracle", "ballast")), key=lambda n: sb[n]["total_cost_of_liquidity"])
-
     improvement = sb[best_naive]["total_cost_of_liquidity"] - ballast["total_cost_of_liquidity"]
     facts = {
         "ballast_net_interest_earned_usd": round(ballast["net_interest_earned"]),
@@ -88,9 +68,46 @@ def generate_summary(data: dict) -> dict:
         "different number (e.g. if a figure is 4,712, say 4,712, never '$0' or '$5,000'). "
         "Facts (JSON):\n" + json.dumps(facts, indent=2)
     )
+    return facts, prompt
 
+
+def _payload(prompt: str) -> dict:
+    # thinkingBudget: 0 disables this model's extended internal reasoning phase
+    # for this call. Measured impact for this prompt: WITHOUT it, the model
+    # spends >30s "thinking" before emitting a single visible token (we
+    # measured a hard read-timeout with zero bytes received); WITH it, the
+    # first token arrives in ~10s and the rest streams in small chunks every
+    # 100-300ms. This narration task needs no multi-step reasoning, so the
+    # thinking phase was pure latency with no quality benefit here.
+    return {"contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"thinkingConfig": {"thinkingBudget": 0}}}
+
+
+def _template_summary(data: dict) -> str:
+    sb = data["scoreboard"]
+    ballast = sb["ballast"]
+    best_naive = min((n for n in sb if n not in ("oracle", "ballast")), key=lambda n: sb[n]["total_cost_of_liquidity"])
+    improvement = sb[best_naive]["total_cost_of_liquidity"] - ballast["total_cost_of_liquidity"]
+    n_defaults = sum(1 for r in data["stress"].values() if not r["survived"])
+    return (
+        f"Over the analyzed period, Ballast earned ${ballast['net_interest_earned']:,.0f} in interest while "
+        f"keeping every customer payout funded. Compared to the best alternative strategy tested, it "
+        f"{'saved' if improvement >= 0 else 'cost'} ${abs(improvement):,.0f} in total liquidity costs. "
+        f"The data shows {data['risk']['n_nights']} overnight windows with highly uneven risk — some nights "
+        f"carry far more cash-drain risk than others, which is why a single fixed cash cushion is the wrong "
+        f"approach. Under stress testing, {n_defaults} of {len(data['stress'])} simulated shock scenarios "
+        f"would have exhausted the funding waterfall, underscoring the importance of active liquidity management."
+    )
+
+
+def generate_summary(data: dict) -> dict:
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        return {"text": _template_summary(data), "source": "template"}
+
+    _, prompt = _facts_and_prompt(data)
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={key}"
-    payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
+    payload = json.dumps(_payload(prompt)).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
@@ -99,3 +116,59 @@ def generate_summary(data: dict) -> dict:
             return {"text": text, "source": "gemini"}
     except Exception:
         return {"text": _template_summary(data), "source": "template"}
+
+
+def generate_summary_stream(data: dict):
+    """Yields small text chunks as they become available, for the frontend's
+    chunk-by-chunk reveal effect. Real token streaming from Gemini's SSE
+    endpoint when a key is configured; a paced word-by-word replay of the
+    deterministic template otherwise (so the chunked UI effect is consistent
+    either way -- we never fabricate a 'live' feel for data that isn't live,
+    we just don't want the two code paths to look jarringly different)."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        words = _template_summary(data).split(" ")
+        for i, w in enumerate(words):
+            yield w + (" " if i < len(words) - 1 else "")
+            time.sleep(0.035)
+        yield "\n__SOURCE__:template"
+        return
+
+    _, prompt = _facts_and_prompt(data)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:streamGenerateContent?alt=sse&key={key}"
+    payload = _payload(prompt)
+    got_any = False
+    try:
+        with requests.post(url, json=payload, stream=True, timeout=30) as resp:
+            resp.raise_for_status()
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line or not line.startswith("data:"):
+                    continue
+                chunk_json = line[len("data:"):].strip()
+                if not chunk_json:
+                    continue
+                try:
+                    obj = json.loads(chunk_json)
+                    text = obj["candidates"][0]["content"]["parts"][0]["text"]
+                except (KeyError, IndexError, json.JSONDecodeError):
+                    continue
+                if text:
+                    got_any = True
+                    yield text
+        yield "\n__SOURCE__:gemini"
+        return
+    except Exception:
+        if got_any:
+            # Already streamed real, partial Gemini text -- do NOT also append
+            # the template underneath it (that would read as garbled duplicate
+            # text). Just end the stream; a partial-but-real answer beats a
+            # partial-real-answer-plus-unrelated-template-glued-on.
+            yield "\n__SOURCE__:gemini"
+            return
+    # Streaming never produced anything usable -- fall back to the template,
+    # still paced as chunks so the UI doesn't jump straight to a wall of text.
+    words = _template_summary(data).split(" ")
+    for i, w in enumerate(words):
+        yield w + (" " if i < len(words) - 1 else "")
+        time.sleep(0.035)
+    yield "\n__SOURCE__:template"
